@@ -5,7 +5,7 @@
 
 
 %%%% Fill out all these macros
-\newcommand{\thesisTitle}{Bridging Modern Transaction and Storage Systems}
+\newcommand{\thesisTitle}{Approximate Timestamp Storage for Efficient Concurrency Control in On-Disk Data Systems}
 \newcommand{\authorName}{Deukyeon Hwang}
 \newcommand{\advisor}{Simon Peter}
 \newcommand{\advisorTitle}{Associate Professor} % assistant, associate prof?
@@ -15,8 +15,8 @@
 % \newcommand{\secondAdvisorTitle}{Associate Professor}
 % \newcommand{\secondAdvisorDepartment}{Computer Science and Engineering}
 
-\newcommand{\readingCommitteeOne}{Adriana}
-\newcommand{\readingCommitteeTwo}{Ratul}
+\newcommand{\readingCommitteeOne}{Adriana Szekeres}
+\newcommand{\readingCommitteeTwo}{Ratul Mahajan}
 \newcommand{\graduationYear}{2025}
 
 
@@ -100,7 +100,7 @@
 
 \chapter*{Acknowledgements}
 \input{02-ack.tex}
-\input{03-dedication}
+% \input{03-dedication}
 
 \tableofcontents{}
 \listoffigures
@@ -110,20 +110,21 @@
 \chapter {Introduction}
 \input{04-intro}
 
-\chapter{Example Project} % change to project name
-\label{chapter:two}
-\input{05-exampleproject}
+\chapter{Background}
+\input{05-background}
 
-\chapter{Add Project 2} % change to project name
+\chapter{Approximate Timestamp Storage for On-disk Concurrency Control} % change to project name
 \label{chapter:three}
+\input{06-appxstorage}
 
-\chapter{Add Project 3 ... or as many as needed} % change to project name
+\chapter{Extended Study with Various Storage Media} % change to project name
 \label{chapter:four}
+\input{07-extended}
 
 %...add as many projects as you need (typically 3-4)
 
 \chapter{Conclusion}
-\input{06-conclusion}
+\input{08-conclusion}
 
 \bibliography{main.bib}
 \bibliographystyle{acl_natbib}
