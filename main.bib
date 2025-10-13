@@ -1,8 +1,1131 @@
-@incollection{grice1975logic,
-  title={Logic and conversation},
-  author={Grice, Herbert P},
-  booktitle={Speech acts},
-  pages={41--58},
-  year={1975},
-  publisher={Brill}
+@inproceedings{2PLFS,
+  author    = {Ramalhete, Pedro and Correia, Andreia and Felber, Pascal},
+  title     = {2PLSF: Two-Phase Locking with Starvation-Freedom},
+  year      = {2023},
+  isbn      = {9798400700156},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/3572848.3577433},
+  doi       = {10.1145/3572848.3577433},
+  abstract  = {Invented more than 40 years ago, the two-phase locking concurrency control (2PL) is capable of providing opaque transactions over multiple records. However, classic 2PL can suffer from live-lock and its scalability is low when applied to workloads with a high number of non-disjoint read accesses.In this paper we propose a new 2PL algorithm (2PLSF) which, by utilizing a novel reader-writer lock, provides highly scalable transactions with starvation-freedom guarantees. Our 2PLSF concurrency control can be applied to records, metadata and to indexing data structures used in database management systems (DBMS). In our experiments we show that 2PLSF is often superior to classical 2PL and can surpass concurrency controls with optimistic reads, simultaneously providing high throughput and low latency for disjoint and non-disjoint workloads.},
+  booktitle = {Proceedings of the 28th ACM SIGPLAN Annual Symposium on Principles and Practice of Parallel Programming},
+  pages     = {39–51},
+  numpages  = {13},
+  location  = {Montreal, QC, Canada},
+  series    = {PPoPP '23}
+}
+
+@article{asterixdb,
+  title   = {AsterixDB: A scalable, open source BDMS},
+  author  = {Alsubaiee, Sattam and Altowim, Yasser and Altwaijry, Hotham and Behm, Alexander and Borkar, Vinayak and Bu, Yingyi and Carey, Michael and Cetindil, Inci and Cheelangi, Madhusudan and Faraaz, Khurram and others},
+  journal = {arXiv preprint arXiv:1407.0454},
+  year    = {2014}
+}
+
+@article{asuresql,
+  title     = {Azure SQL Database},
+  author    = {Mazumdar, Pranab and Agarwal, Sourabh and Banerjee, Amit and Mazumdar, Pranab and Agarwal, Sourabh and Banerjee, Amit},
+  journal   = {Pro SQL Server on Microsoft Azure},
+  pages     = {129--156},
+  year      = {2016},
+  publisher = {Springer}
+}
+
+@inproceedings{AtikogluXuFr12,
+  author       = {Atikoglu, Berk and Xu, Yuehai and Frachtenberg, Eitan and Jiang, Song and Paleczny, Mike},
+  title        = {Workload Analysis of a Large-scale Key-value Store},
+  booktitle    = {SIGMETRICS},
+  optseries    = {SIGMETRICS '12},
+  year         = {2012},
+  optisbn      = {978-1-4503-1097-0},
+  optlocation  = {London, England, UK},
+  optpages     = {53--64},
+  optnumpages  = {12},
+  opturl       = {http://doi.acm.org/10.1145/2254756.2254766},
+  optdoi       = {10.1145/2254756.2254766},
+  optacmid     = {2254766},
+  optpublisher = {ACM},
+  optaddress   = {New York, NY, USA},
+  optkeywords  = {key-value store, memcached, workload analysis, workload modeling}
+}
+
+@inproceedings{bamboo,
+  title     = {Releasing locks as early as you can: Reducing contention of hotspots by violating two-phase locking},
+  author    = {Guo, Zhihan and Wu, Kan and Yan, Cong and Yu, Xiangyao},
+  booktitle = {Proceedings of the 2021 International Conference on Management of Data},
+  pages     = {658--670},
+  year      = {2021}
+}
+
+@article{barroso2013datacenter,
+  title     = {The datacenter as a computer: An introduction to the design of warehouse-scale machines},
+  author    = {Barroso, Luiz Andr{\'e} and Clidaras, Jimmy and H{\"o}lzle, Urs},
+  journal   = {Synthesis lectures on computer architecture},
+  volume    = {8},
+  number    = {3},
+  pages     = {1--154},
+  year      = {2013},
+  publisher = {Morgan \& Claypool Publishers}
+}
+
+@article{bender2015introduction,
+  author    = { Bender,Michael A. and Farach-Colton, Martin and Jannen, William and Johnson, Rob and Kuszmaul, Bradley C. and Porter, Donald E. and Yuan, Jun and Zhan, Yang},
+  title     = {An Introduction to Betrees and Write-Optimization},
+  journal   = {USENIX ;login:},
+  year      = {2015},
+  optkey    = {},
+  optvolume = {},
+  optnumber = {},
+  optmonth  = {},
+  optnote   = {},
+  optannote = {}
+}
+
+@inproceedings{berkeleydb,
+  title     = {Berkeley DB.},
+  author    = {Olson, Michael A and Bostic, Keith and Seltzer, Margo I},
+  booktitle = {USENIX Annual Technical Conference, FREENIX Track},
+  pages     = {183--191},
+  year      = {1999}
+}
+@book{bernstein1987concurrency,
+  title     = {Concurrency control and recovery in database systems},
+  author    = {Bernstein, Philip A and Hadzilacos, Vassos and Goodman, Nathan and others},
+  volume    = {370},
+  year      = {1987},
+  publisher = {Addison-Wesley Reading}
+}
+
+@article{BottcherLeNe19,
+  author     = {B\"{o}ttcher, Jan and Leis, Viktor and Neumann, Thomas and Kemper, Alfons},
+  title      = {Scalable garbage collection for in-memory MVCC systems},
+  year       = {2019},
+  issue_date = {October 2019},
+  publisher  = {VLDB Endowment},
+  volume     = {13},
+  number     = {2},
+  issn       = {2150-8097},
+  url        = {https://doi.org/10.14778/3364324.3364328},
+  doi        = {10.14778/3364324.3364328},
+  abstract   = {To support Hybrid Transaction and Analytical Processing (HTAP), database systems generally rely on Multi-Version Concurrency Control (MVCC). While MVCC elegantly enables lightweight isolation of readers and writers, it also generates outdated tuple versions, which, eventually, have to be reclaimed. Surprisingly, we have found that in HTAP workloads, this reclamation of old versions, i.e., garbage collection, often becomes the performance bottleneck.It turns out that in the presence of long-running queries, state-of-the-art garbage collectors are too coarse-grained. As a consequence, the number of versions grows quickly slowing down the entire system. Moreover, the standard background cleaning approach makes the system vulnerable to sudden spikes in workloads.In this work, we propose a novel garbage collection (GC) approach that prunes obsolete versions eagerly. Its seamless integration into the transaction processing keeps the GC overhead minimal and ensures good scalability. We show that our approach handles mixed workloads well and also speeds up pure OLTP workloads like TPC-C compared to existing state-of-the-art approaches.},
+  journal    = {Proc. VLDB Endow.},
+  month      = oct,
+  pages      = {128–141},
+  numpages   = {14}
+}
+
+@inproceedings{BrodalFa03,
+  author    = {Brodal, Gerth Stolting and Fagerberg, Rolf},
+  title     = {Lower bounds for external memory dictionaries},
+  year      = {2003},
+  isbn      = {0898715385},
+  publisher = {Society for Industrial and Applied Mathematics},
+  address   = {USA},
+  abstract  = {We study trade-offs between the update time and the query time for comparison based external memory dictionaries. The main contributions of this paper are two lower bound trade offs between the I/O complexity of member queries and insertions: If N < M insertions perform at most δ · N/B I/Os, then (1) there exists a query requiring N/(M. ·~O(δ)) I/Os, and (2) there exists a query requiring Ω(logδlog2N ~ I/Os when δ is O(B/log3 N) and N is at least M2. For both lower bound we describe data structures which give matching upper bounds for a wide range of parameters, thereby showing the lower bounds to be tight within these ranges.},
+  booktitle = {Proceedings of the Fourteenth Annual ACM-SIAM Symposium on Discrete Algorithms},
+  pages     = {546–554},
+  numpages  = {9},
+  location  = {Baltimore, Maryland},
+  series    = {SODA '03}
+}
+
+@misc{cassandra,
+  title        = {{Apache Cassandra}},
+  author       = {Apache Software Foundation},
+  year         = {2019},
+  howpublished = {\url{http://cassandra.apache.org}}
+}
+
+
+@inproceedings{chardonnay,
+  author    = {Tamer Eldeeb and Xincheng Xie and Philip A. Bernstein and Asaf Cidon and Junfeng Yang},
+  title     = {Chardonnay: Fast and General Datacenter Transactions for {On-Disk} Databases},
+  booktitle = {17th USENIX Symposium on Operating Systems Design and Implementation (OSDI 23)},
+  year      = {2023},
+  isbn      = {978-1-939133-34-2},
+  address   = {Boston, MA},
+  pages     = {343--360},
+  url       = {https://www.usenix.org/conference/osdi23/presentation/eldeeb},
+  publisher = {USENIX Association},
+  month     = jul
+}
+
+
+@article{ConwayFaJo23,
+  author     = {Conway, Alex and Farach-Colton, Mart\'{\i}n and Johnson, Rob},
+  title      = {SplinterDB and Maplets: Improving the Tradeoffs in Key-Value Store Compaction Policy},
+  year       = {2023},
+  issue_date = {May 2023},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {1},
+  number     = {1},
+  url        = {https://doi.org/10.1145/3588726},
+  doi        = {10.1145/3588726},
+  abstract   = {A critical aspect of modern key-value stores is the interaction between compaction policy and filters. Aggressive compaction reduces the on-disk footprint of a key-value store and can improve query performance, but can reduce insertion throughput because it is I/O and CPU expensive. Filters can mitigate the query costs of lazy compaction, but only if they fit in RAM, limiting the scalability of queries with lazy compaction. And, with fast storage devices, the CPU costs of querying filters in a lazy compacting system can be significant.In this work, we present Mapped SplinterDB, a key-value store that achieves excellent insertion performance, query performance, space efficiency, and scalability by replacing filters with maplets, space-efficient data structures that act as lossy maps with false positives. Critically, we use quotient maplets, which can be merged and resized without access to the underlying data, enabling us to decouple compaction of the data from compaction of the quotient maplets. Thus Mapped SplinterDB can compact data lazily and quotient maplets aggressively, so that each level has multiple sorted runs of data but only one quotient maplet. Quotient maplets are so small that compacting them aggressively is still cheaper than compacting the (much larger) data lazily, so overall we get the insertion performance of a lazily compacted system. And, since there is only one quotient maplet to query on each level, we get the query performance of an aggressively compacted system. Furthermore, quotient maplets can accelerate queries even when they don't fit in RAM, improving scalability to huge datasets. We also show how to use quotient maplets to estimate when a compaction could resolve a high density of updates, enabling Mapped SplinterDB to perform targeted compactions for space recovery.In our benchmarks, Mapped SplinterDB matches the insertion performance of SplinterDB, a state-of-the-art lazily compacted system, and beats RocksDB, an aggressive compacting system, by up to 9\texttimes{}. On queries, Mapped SplinterDB outperforms SplinterDB and RocksDB by up to 89\% and 83\%, respectively, and scales gracefully to huge datasets. Mapped SplinterDB is able to dynamically trade update performance for space efficiency, resulting in space overheads on update-heavy workloads as low as 15-61\%, whereas RocksDB had 80-117\% and SplinterDB had up to 137\% space overhead.},
+  journal    = {Proc. ACM Manag. Data},
+  month      = may,
+  articleno  = {46},
+  numpages   = {27},
+  keywords   = {LSM trees, data structures, filters, key-value stores, maplets, quotient filters}
+}
+
+@article{CormodeMu05,
+  author     = {Cormode, Graham and Muthukrishnan, S.},
+  title      = {An improved data stream summary: the count-min sketch and its applications},
+  year       = {2005},
+  issue_date = {April 2005},
+  publisher  = {Academic Press, Inc.},
+  address    = {USA},
+  volume     = {55},
+  number     = {1},
+  issn       = {0196-6774},
+  url        = {https://doi.org/10.1016/j.jalgor.2003.12.001},
+  doi        = {10.1016/j.jalgor.2003.12.001},
+  abstract   = {We introduce a new sublinear space data structure--the count-min sketch--for summarizing data streams. Our sketch allows fundamental queries in data stream summarization such as point, range, and inner product queries to be approximately answered very quickly; in addition, it can be applied to solve several important problems in data streams such as finding quantiles, frequent items, etc. The time and space bounds we show for using the CM sketch to solve these problems significantly improve those previously known--typically from 1/ε2 to 1/ε in factor.},
+  journal    = {J. Algorithms},
+  month      = apr,
+  pages      = {58–75},
+  numpages   = {18}
+}
+
+@misc{couchbase,
+  title        = {Couchbase},
+  author       = {{Couchbase, Inc.}},
+  year         = 2010,
+  howpublished = {\url{https://www.couchbase.com}}
+}
+
+@misc{crucial-t700-review,
+  optkey       = {},
+  author       = {Les Tokar},
+  title        = {Crucial T700 PCIe 5 SSD Review – 12.4GB/s Throughput with over 1.6 Million IOPS},
+  howpublished = {\url{https://www.thessdreview.com/our-reviews/nvme/crucial-t700-pcie-5-ssd-review/3/}},
+  optmonth     = {},
+  year         = {2023},
+  optnote      = {},
+  optannote    = {}
+}
+
+@inbook{cstore,
+  author    = {Stonebraker, Mike and Abadi, Daniel J. and Batkin, Adam and Chen, Xuedong and Cherniack, Mitch and Ferreira, Miguel and Lau, Edmond and Lin, Amerson and Madden, Sam and O'Neil, Elizabeth and O'Neil, Pat and Rasin, Alex and Tran, Nga and Zdonik, Stan},
+  title     = {C-Store: A Column-Oriented DBMS},
+  year      = {2018},
+  isbn      = {9781947487192},
+  publisher = {Association for Computing Machinery and Morgan \& Claypool},
+  url       = {https://doi.org/10.1145/3226595.3226638},
+  abstract  = {This paper presents the design of a read-optimized relational DBMS that contrasts sharply with most current systems, which are write-optimized. Among the many differences in its design are: storage of data by column rather than by row, careful coding and packing of objects into storage including main memory during query processing, storing an overlapping collection of column-oriented projections, rather than the current fare of tables and indexes, a non-traditional implementation of transactions which includes high availability and snapshot isolation for read-only transactions, and the extensive use of bitmap indexes to complement B-tree structures.We present preliminary performance data on a subset of TPC-H and show that the system we are building, C-Store, is substantially faster than popular commercial products. Hence, the architecture looks very encouraging.},
+  booktitle = {Making Databases Work: The Pragmatic Wisdom of Michael Stonebraker},
+  pages     = {491–518},
+  numpages  = {28}
+}
+
+@article{dash,
+  author     = {Lu, Baotong and Hao, Xiangpeng and Wang, Tianzheng and Lo, Eric},
+  title      = {Dash: scalable hashing on persistent memory},
+  year       = {2020},
+  issue_date = {April 2020},
+  publisher  = {VLDB Endowment},
+  volume     = {13},
+  number     = {8},
+  issn       = {2150-8097},
+  url        = {https://doi.org/10.14778/3389133.3389134},
+  doi        = {10.14778/3389133.3389134},
+  abstract   = {Byte-addressable persistent memory (PM) brings hash tables the potential of low latency, cheap persistence and instant recovery. The recent advent of Intel Optane DC Persistent Memory Modules (DCPMM) further accelerates this trend. Many new hash table designs have been proposed, but most of them were based on emulation and perform sub-optimally on real PM. They were also piece-wise and partial solutions that side-step many important properties, in particular good scalability, high load factor and instant recovery.We present Dash, a holistic approach to building dynamic and scalable hash tables on real PM hardware with all the aforementioned properties. Based on Dash, we adapted two popular dynamic hashing schemes (extendible hashing and linear hashing). On a 24-core machine with Intel Optane DCPMM, we show that compared to state-of-the-art, Dash-enabled hash tables can achieve up to ∼3.9\texttimes{} higher performance with up to over 90\% load factor and an instant recovery time of 57ms regardless of data size.},
+  journal    = {Proc. VLDB Endow.},
+  month      = apr,
+  pages      = {1147–1161},
+  numpages   = {15}
+}
+
+@inproceedings{DBLP:conf/fast/CaoDVD20,
+  author    = {Zhichao Cao and
+               Siying Dong and
+               Sagar Vemuri and
+               David H. C. Du},
+  editor    = {Sam H. Noh and
+               Brent Welch},
+  title     = {Characterizing, Modeling, and Benchmarking RocksDB Key-Value Workloads
+               at Facebook},
+  booktitle = {18th {USENIX} Conference on File and Storage Technologies, {FAST}
+               2020, Santa Clara, CA, USA, February 24-27, 2020},
+  pages     = {209--223},
+  publisher = {{USENIX} Association},
+  year      = {2020},
+  url       = {https://www.usenix.org/conference/fast20/presentation/cao-zhichao},
+  timestamp = {Mon, 13 Feb 2023 07:50:30 +0100},
+  biburl    = {https://dblp.org/rec/conf/fast/CaoDVD20.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+@inproceedings{DBLP:conf/sigmod/RenFA16,
+  author    = {Kun Ren and
+               Jose M. Faleiro and
+               Daniel J. Abadi},
+  editor    = {Fatma {\"{O}}zcan and
+               Georgia Koutrika and
+               Sam Madden},
+  title     = {Design Principles for Scaling Multi-core {OLTP} Under High Contention},
+  booktitle = {Proceedings of the 2016 International Conference on Management of
+               Data, {SIGMOD} Conference 2016, San Francisco, CA, USA, June 26 -
+               July 01, 2016},
+  pages     = {1583--1598},
+  publisher = {{ACM}},
+  year      = {2016},
+  url       = {https://doi.org/10.1145/2882903.2882958},
+  doi       = {10.1145/2882903.2882958},
+  timestamp = {Mon, 04 Nov 2024 22:25:43 +0100},
+  biburl    = {https://dblp.org/rec/conf/sigmod/RenFA16.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{DBLP:conf/usenix/TangE18,
+  author    = {Dixin Tang and
+               Aaron J. Elmore},
+  editor    = {Haryadi S. Gunawi and
+               Benjamin C. Reed},
+  title     = {Toward Coordination-free and Reconfigurable Mixed Concurrency Control},
+  booktitle = {Proceedings of the 2018 {USENIX} Annual Technical Conference, {USENIX}
+               {ATC} 2018, Boston, MA, USA, July 11-13, 2018},
+  pages     = {809--822},
+  publisher = {{USENIX} Association},
+  year      = {2018},
+  url       = {https://www.usenix.org/conference/atc18/presentation/tang},
+  timestamp = {Tue, 16 Jul 2024 09:12:32 +0200},
+  biburl    = {https://dblp.org/rec/conf/usenix/TangE18.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+
+@article{DBLP:journals/pvldb/HaoC24,
+  author    = {Xiangpeng Hao and
+               Badrish Chandramouli},
+  title     = {Bf-Tree: {A} Modern Read-Write-Optimized Concurrent Larger-Than-Memory
+               Range Index},
+  journal   = {Proc. {VLDB} Endow.},
+  volume    = {17},
+  number    = {11},
+  pages     = {3442--3455},
+  year      = {2024},
+  url       = {https://www.vldb.org/pvldb/vol17/p3442-hao.pdf},
+  doi       = {10.14778/3681954.3682012},
+  timestamp = {Thu, 19 Dec 2024 16:40:20 +0100},
+  biburl    = {https://dblp.org/rec/journals/pvldb/HaoC24.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+
+@inproceedings{dlht,
+  author    = {Katsarakis, Antonios and Gavrielatos, Vasilis and Ntarmos, Nikos},
+  title     = {DLHT: A Non-blocking Resizable Hashtable with Fast Deletes and Memory-awareness},
+  year      = {2024},
+  isbn      = {9798400704130},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/3625549.3658682},
+  doi       = {10.1145/3625549.3658682},
+  abstract  = {This paper presents DLHT, a concurrent in-memory hashtable. Despite efforts to optimize hashtables, that go as far as sacrificing core functionality, state-of-the-art designs still incur multiple memory accesses per request and block request processing in three cases. First, most hashtables block while waiting for data to be retrieved from memory. Second, open-addressing designs, which represent the current state-of-the-art, either cannot free index slots on deletes or must block all requests to do so. Third, index resizes block every request until all objects are copied to the new index. Defying folklore wisdom, DLHT forgoes open-addressing and adopts a fully-featured and memory-aware closed-addressing design based on bounded cache-line-chaining. This design offers (1) lock-free operations and deletes that free slots instantly, (2) completes most requests with a single memory access, (3) utilizes software prefetching to hide memory latencies, and (4) employs a novel non-blocking and parallel resizing. In a commodity server and a memory-resident workload, DLHT surpasses 1.6B requests per second and provides 3.5\texttimes{} (12\texttimes{}) the throughput of the state-of-the-art closed-addressing (open-addressing) resizable hashtable on Gets (Deletes).},
+  booktitle = {Proceedings of the 33rd International Symposium on High-Performance Parallel and Distributed Computing},
+  pages     = {186–199},
+  numpages  = {14},
+  keywords  = {high throughput, in-memory, non-blocking, hastable, prefetching, consistency, memory-aware, deletes, resize, close-addressing},
+  location  = {Pisa, Italy},
+  series    = {HPDC '24}
+}
+
+@inproceedings{duplyakin2019cloudlab,
+  author    = {Dmitry Duplyakin and Robert Ricci and Aleksander Maricq and Gary Wong and Jonathon Duerig and Eric Eide and Leigh Stoller and Mike Hibler and David Johnson and Kirk Webb and Aditya Akella and Kuangching Wang and Glenn Ricart and Larry Landweber and Chip Elliott and Michael Zink and Emmanuel Cecchet and Snigdhaswin Kar and Prabodh Mishra},
+  title     = {{The Design and Operation of CloudLab}},
+  booktitle = {2019 USENIX Annual Technical Conference (USENIX ATC 19)},
+  year      = {2019},
+  isbn      = {978-1-939133-03-8},
+  address   = {Renton, WA},
+  pages     = {1--14},
+  url       = {https://www.usenix.org/conference/atc19/presentation/duplyakin},
+  publisher = {USENIX Association},
+  month     = jul
+}
+
+@inproceedings{flexswitch,
+  author    = {Naveen Kr. Sharma and Antoine Kaufmann and Thomas Anderson and Arvind Krishnamurthy and Jacob Nelson and Simon Peter},
+  title     = {Evaluating the Power of Flexible Packet Processing for Network Resource Allocation},
+  booktitle = {14th USENIX Symposium on Networked Systems Design and Implementation (NSDI 17)},
+  year      = {2017},
+  isbn      = {978-1-931971-37-9},
+  address   = {Boston, MA},
+  pages     = {67--82},
+  url       = {https://www.usenix.org/conference/nsdi17/technical-sessions/presentation/sharma},
+  publisher = {USENIX Association},
+  month     = mar
+}
+
+@inproceedings{googlef1,
+  title     = {F1: A Distributed SQL Database That Scales},
+  author    = {Jeff Shute and Radek Vingralek and Bart Samwel and Ben Handy and Chad Whipkey and Eric Rollins and Mircea Oancea and Kyle Littleﬁeld and David Menestrina and Stephan Ellner and John Cieslewicz and Ian Rae and Traian Stancescu and Himani Apte},
+  year      = {2013},
+  booktitle = {VLDB}
+}
+
+@misc{hotstorage-keynote,
+  title = {What's Changing in Big Data?},
+  note  = {\url{https://www.usenix.org/conference/hotcloud16/workshop-program/presentation/keynote-address}}
+}
+
+@inproceedings{HsiehWe92,
+  author       = {W. C. {Hsieh} and W. E. {Weihl}},
+  optbooktitle = {Proceedings Sixth International Parallel Processing Symposium},
+  booktitle    = {IPPS},
+  title        = {Scalable reader-writer locks for parallel systems},
+  year         = {1992},
+  optvolume    = {},
+  optnumber    = {},
+  optpages     = {656-659},
+  optkeywords  = {performance evaluation;shared memory systems;synchronisation;scalable reader-writer locks;shared memory multiprocessors;parallel systems;reader-writer synchronization;reader throughput;writer throughput;Throughput;Costs;Computer science;Heuristic algorithms;Testing;Laboratories;Parallel processing;Contracts;Concurrent computing;Scalability},
+  optdoi       = {10.1109/IPPS.1992.222989},
+  optissn      = {},
+  optmonth     = {March}
+}
+
+@inproceedings{Iacono2012UsingHT,
+  title     = {Using hashing to solve the dictionary problem},
+  author    = {John Iacono and Mihai Patrascu},
+  booktitle = {ACM-SIAM Symposium on Discrete Algorithms},
+  year      = {2012},
+  url       = {https://api.semanticscholar.org/CorpusID:7469433}
+}
+
+@inproceedings{iceberg,
+  author    = {Pandey, Prashant and Bender, Michael and Conway, Alex and Farach-Colton, Martin and Kuszmaul, William and Tagliavini, Guido and Johnson, Rob},
+  title     = {IcebergHT: High Performance PMEM Hash Tables Through Stability and Low Associativity},
+  year      = {2023},
+  booktitle = {Proceedings of the 2023 ACM SIGMOD International Conference on Management of Data}
+}
+
+@misc{iot-wikipedia,
+  title = {Internet of things},
+  note  = {\url{https://en.wikipedia.org/wiki/Internet_of_things}}
+}
+
+@inproceedings{iotCloud,
+  author    = {Ben Zhang and Nitesh Mor and John Kolb and Douglas S. Chan and Ken Lutz and Eric Allman and John Wawrzynek and Edward Lee and John Kubiatowicz},
+  title     = {The Cloud is Not Enough: Saving IoT from the Cloud},
+  booktitle = {7th USENIX Workshop on Hot Topics in Cloud Computing (HotCloud 15)},
+  year      = {2015},
+  address   = {Santa Clara, CA},
+  url       = {https://www.usenix.org/conference/hotcloud15/workshop-program/presentation/zhang},
+  publisher = {USENIX Association}
+}
+
+
+@inproceedings{jimgray,
+  author    = {Gray, Jim and Baclawski, Ken and Sundaresan, Prakash and Englert, Susanne},
+  title     = {Quickly Generating Billion-Record Synthetic Databases},
+  booktitle = {},
+  year      = {1994},
+  month     = {January},
+  publisher = {Association for Computing Machinery, Inc.},
+  url       = {https://www.microsoft.com/en-us/research/publication/quickly-generating-billion-record-synthetic-databases/},
+  address   = {},
+  pages     = {},
+  journal   = {},
+  volume    = {},
+  chapter   = {},
+  isbn      = {}
+}
+
+@inproceedings{KaiyrakhmetLeNa19,
+  author    = {Olzhas Kaiyrakhmet and Songyi Lee and Beomseok Nam and Sam H. Noh and Young-ri Choi},
+  title     = {SLM-DB: Single-Level Key-Value Store with Persistent Memory},
+  booktitle = {17th {USENIX} Conference on File and Storage Technologies ({FAST} 19)},
+  year      = {2019},
+  isbn      = {978-1-931971-48-5},
+  address   = {Boston, MA},
+  pages     = {191--205},
+  url       = {https://www.usenix.org/conference/fast19/presentation/kaiyrakhmet},
+  publisher = {{USENIX} Association}
+}
+
+@inproceedings{KourtisIoKo19,
+  author    = {Kornilios Kourtis and Nikolas Ioannou and Ioannis Koltsidas},
+  title     = {Reaping the performance of fast {NVM} storage with uDepot},
+  booktitle = {17th {USENIX} Conference on File and Storage Technologies ({FAST} 19)},
+  year      = {2019},
+  isbn      = {978-1-931971-48-5},
+  address   = {Boston, MA},
+  pages     = {1--15},
+  url       = {https://www.usenix.org/conference/fast19/presentation/kourtis},
+  publisher = {{USENIX} Association}
+}
+
+@article{kung1981optimistic,
+  title     = {On optimistic methods for concurrency control},
+  author    = {Kung, Hsiang-Tsung and Robinson, John T},
+  journal   = {ACM Transactions on Database Systems (TODS)},
+  volume    = {6},
+  number    = {2},
+  pages     = {213--226},
+  year      = {1981},
+  publisher = {ACM New York, NY, USA}
+}
+
+@article{larson2011high,
+  title   = {High-performance concurrency control mechanisms for main-memory databases},
+  author  = {Larson, Per-{\AA}ke and Blanas, Spyros and Diaconu, Cristian and Freedman, Craig and Patel, Jignesh M and Zwilling, Mike},
+  journal = {arXiv preprint arXiv:1201.0228},
+  year    = {2011}
+}
+
+@misc{leveldb,
+  title        = {LevelDB},
+  author       = {{Google, Inc.}},
+  year         = 2019,
+  howpublished = {\url{https://github.com/google/leveldb}}
+}
+
+@misc{lmdb,
+  title  = {{LMDB: The Lightning Memory-Mapped Database Manager}},
+  author = {Howard Chu},
+  year   = {2015},
+  url    = {http://www.lmdb.tech/doc/}
+}
+
+@inproceedings{lsm-trie,
+  author    = {Xingbo Wu and Yuehai Xu and Zili Shao and Song
+               Jiang},
+  title     = {LSM-trie: An LSM-tree-based Ultra-Large Key-Value
+               Store for Small Data Items},
+  year      = 2015,
+  booktitle = {2015 {USENIX} Annual Technical Conference, {USENIX}
+               {ATC} '15, July 8-10, Santa Clara, CA, {USA}},
+  pages     = {71-82},
+  url       = {https://www.usenix.org/conference/atc15/technical-session/presentation/wu},
+  crossref  = {DBLP:conf/usenix/2015},
+  timestamp = {Tue, 07 Jul 2015 09:25:47 +0200},
+  biburl    = {https://dblp.org/rec/bib/conf/usenix/WuXSJ15},
+  bibsource = {dblp computer science bibliography,
+               https://dblp.org}
+}
+
+@inproceedings{lu2016wisckey,
+  author    = {Lu, Lanyue and Pillai, Thanumalayan Sankaranarayana
+               and Arpaci-Dusseau, Andrea C. and Arpaci-Dusseau,
+               Remzi H.},
+  booktitle = {Proceedings of the 14th USENIX Conference on File
+               and Storage Technologies (FAST 16)},
+  pages     = {133--148},
+  title     = {WiscKey: Separating Keys from Values in
+               SSD-conscious Storage},
+  year      = {2016}
+}
+
+
+@inproceedings{marmol2015nvmkv,
+  author        = {Marmol, Leonardo and Sundararaman, Swaminathan and
+                   Talagala, Nisha and Rangaswami, Raju},
+  booktitle     = {2015 USENIX Annual Technical Conference (USENIX ATC
+                   15)},
+  date-added    = {2016-10-18 18:47:32 +0000},
+  date-modified = {2016-10-18 18:47:32 +0000},
+  pages         = {207--219},
+  title         = {NVMKV: a Scalable, Lightweight, FTL-aware Key-Value
+                   Store},
+  year          = {2015}
+}
+
+@misc{microprocessor-trend-data,
+  optkey       = {},
+  author       = {Karl Rupp},
+  title        = {42 years of microrocessor trend data},
+  howpublished = {\url{https://www.karlrupp.net/2018/02/42-years-of-microprocessor-trend-data/}},
+  month        = {February},
+  year         = {2018},
+  optnote      = {},
+  optannote    = {}
+}
+
+@misc{mongodb,
+  optkey       = {},
+  author       = {MongoDB},
+  title        = {The database for modern applications},
+  howpublished = {\url{https://www.mongodb.com/}},
+  optmonth     = {},
+  year         = {2020},
+  optnote      = {},
+  optannote    = {}
+} 
+
+@misc{myrocks,
+  optkey       = {},
+  author       = {FaceBook, Inc.},
+  title        = {A RocksDB Storage Engine with MySQL},
+  howpublished = {\url{http://myrocks.io/}},
+  optmonth     = {},
+  year         = {2020},
+  optnote      = {},
+  optannote    = {}
+}
+
+@inproceedings{neumann2015fast,
+  title     = {Fast serializable multi-version concurrency control for main-memory database systems},
+  author    = {Neumann, Thomas and M{\"u}hlbauer, Tobias and Kemper, Alfons},
+  booktitle = {Proceedings of the 2015 ACM SIGMOD International Conference on Management of Data},
+  pages     = {677--689},
+  year      = {2015}
+}
+
+@misc{ompuverde,
+  title = {Compuverde Technical Overview},
+  note  = {\url{http://compuverde.com/media/138857/compuverde-technical-overview.pdf}}
+}
+
+@article{OneillChGaOn96,
+  author     = {O’Neil, Patrick and Cheng, Edward and Gawlick, Dieter and O’Neil, Elizabeth},
+  title      = {The log-structured merge-tree (LSM-tree)},
+  year       = {1996},
+  issue_date = {Jun 1996},
+  publisher  = {Springer-Verlag},
+  address    = {Berlin, Heidelberg},
+  volume     = {33},
+  number     = {4},
+  issn       = {0001-5903},
+  url        = {https://doi.org/10.1007/s002360050048},
+  doi        = {10.1007/s002360050048},
+  abstract   = {High-performance transaction system applications typically insert rows in a History table to provide an activity trace; at the same time the transaction system generates log records for purposes of system recovery. Both types of generated information can benefit from efficient indexing. An example in a well-known setting is the TPC-A benchmark application, modified to support efficient queries on the history for account activity for specific accounts. This requires an index by account-id on the fast-growing History table. Unfortunately, standard disk-based index structures such as the B-tree will effectively double the I/O cost of the transaction to maintain an index such as this in real time, increasing the total system cost up to fifty percent. Clearly a method for maintaining a real-time index at low cost is desirable. The log-structured mergetree (LSM-tree) is a disk-based data structure designed to provide low-cost indexing for a file experiencing a high rate of record inserts (and deletes) over an extended period. The LSM-tree uses an algorithm that defers and batches index changes, cascading the changes from a memory-based component through one or more disk components in an efficient manner reminiscent of merge sort. During this process all index values are continuously accessible to retrievals (aside from very short locking periods), either through the memory component or one of the disk components. The algorithm has greatly reduced disk arm movements compared to a traditional access methods such as B-trees, and will improve cost-performance in domains where disk arm costs for inserts with traditional access methods overwhelm storage media costs. The LSM-tree approach also generalizes to operations other than insert and delete. However, indexed finds requiring immediate response will lose I/O efficiency in some cases, so the LSM-tree is most useful in applications where index inserts are more common than finds that retrieve the entries. This seems to be a common property for history tables and log files, for example. The conclusions of Sect. 6 compare the hybrid use of memory and disk components in the LSM-tree access method with the commonly understood advantage of the hybrid method to buffer disk pages in memory.},
+  journal    = {Acta Inf.},
+  month      = jun,
+  pages      = {351–385},
+  numpages   = {35},
+  keywords   = {Leaf Node, Leaf Level, Memory Buffer, Access Rate, Disk Component}
+}
+
+@inproceedings{Ousterhout,
+  author    = {Kay Ousterhoutand Ryan Rasti and Sylvia Ratnasamy and Scott Shenker and Byung-Gon Chun},
+  title     = {Making Sense of Performance in Data Analytics Frameworks},
+  booktitle = {Proceedings of the 12th USENIX Symposium on Networked Systems Design and Implementation},
+  series    = {NSDI '15},
+  year      = {2015},
+  isbn      = {978-1-931971-218},
+  location  = {Oakland, California},
+  pages     = {294--307},
+  numpages  = {15},
+  url       = {https://www.usenix.org/system/files/conference/nsdi15/nsdi15-paper-ousterhout.pdf},
+  publisher = {USENIX Association}
+}
+
+@misc{P5800X,
+  title        = {The next-generation Intel® Optane™ SSD P5800X provides the performance needed to support your most data-intensive workloads.},
+  author       = {Intel, Inc.},
+  year         = {2021},
+  howpublished = {\url{https://www.intel.com/content/www/us/en/products/docs/memory-storage/solid-state-drives/data-center-ssds/optane-ssd-p5800x-p5801x-brief.html}}
+}
+
+@inproceedings{PapagiannisSaGo16,
+  author    = {Anastasios Papagiannis and Giorgos Saloustros and Pilar Gonz{\'a}lez-F{\'e}rez and Angelos Bilas},
+  title     = {Tucana: Design and Implementation of a Fast and Efficient Scale-up Key-value Store},
+  booktitle = {2016 {USENIX} Annual Technical Conference ({USENIX} {ATC} 16)},
+  year      = {2016},
+  isbn      = {978-1-931971-30-0},
+  address   = {Denver, CO},
+  pages     = {537--550},
+  url       = {https://www.usenix.org/conference/atc16/technical-sessions/presentation/papagiannis},
+  publisher = {{USENIX} Association}
+}
+
+@inproceedings{plor,
+  author    = {Chen, Youmin and Yu, Xiangyao and Koutris, Paraschos and Arpaci-Dusseau, Andrea C. and Arpaci-Dusseau, Remzi H. and Shu, Jiwu},
+  title     = {Plor: General Transactions with Predictable, Low Tail Latency},
+  year      = {2022},
+  isbn      = {9781450392495},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/3514221.3517879},
+  doi       = {10.1145/3514221.3517879},
+  abstract  = {We present pessimistic locking and optimistic reading (PLOR), a hybrid concurrency control protocol for in-memory transaction systems that delivers high throughput and low tail latency. PLOR is especially designed for high-contention workloads: for high throughput, transactions are allowed to access records without being blocked by lock conflicts in the read phase; for low tail latency, conflict detection is delayed to the commit phase, where old transactions are always committed first using the timestamps in the lock. We demonstrate the efficacy of this approach under a variety of setups (e.g., stored-procedures, interactive mode, and persistent logging, etc.). Experiments show that PLOR delivers close or comparable throughput to that of Silo and TicToc in stored-procedures, while reducing 99.9th percentile latency by 8.8x to 14.5x. In the interactive processing mode, PLOR even achieves up to 2x higher throughput.},
+  booktitle = {Proceedings of the 2022 International Conference on Management of Data},
+  pages     = {19–33},
+  numpages  = {15},
+  keywords  = {two-phase locking, tail latency, concurrency control, OLTP},
+  location  = {Philadelphia, PA, USA},
+  series    = {SIGMOD '22}
+}
+
+@inproceedings{polardb,
+  author    = {Wei Cao and Yang Liu and Zhushi Cheng and Ning Zheng and Wei Li and Wenjie Wu and Linqiang Ouyang and Peng Wang and Yijing Wang and Ray Kuan and Zhenjun Liu and Feng Zhu and Tong Zhang},
+  title     = {{POLARDB} Meets Computational Storage: Efficiently Support Analytical Workloads in {Cloud-Native} Relational Database},
+  booktitle = {18th USENIX Conference on File and Storage Technologies (FAST 20)},
+  year      = {2020},
+  isbn      = {978-1-939133-12-0},
+  address   = {Santa Clara, CA},
+  pages     = {29--41},
+  url       = {https://www.usenix.org/conference/fast20/presentation/cao-wei},
+  publisher = {USENIX Association},
+  month     = feb
+}
+
+@article{polaris,
+  author     = {Ye, Chenhao and Hwang, Wuh-Chwen and Chen, Keren and Yu, Xiangyao},
+  title      = {Polaris: Enabling Transaction Priority in Optimistic Concurrency Control},
+  year       = {2023},
+  issue_date = {May 2023},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {1},
+  number     = {1},
+  url        = {https://doi.org/10.1145/3588724},
+  doi        = {10.1145/3588724},
+  abstract   = {Transaction priority is a critical feature for real-world database systems. Under high contention, certain classes of transactions should be given a higher chance to commit than others. Such a prioritization mechanism is commonly implemented in locking-based concurrency control protocols as some lock scheduling mechanisms, but it is rarely supported in the world of optimistic concurrency control.We present Polaris, an optimistic concurrency control protocol that supports multiple priority levels. To enforce priority, Polaris introduces a minimal amount of pessimism through a lightweight reservation mechanism. The protocol is fully optimistic among transactions within the same priority level and preserves the high throughput advantage of optimistic protocols. Our evaluation with YCSB workload shows that Polaris can make the p999 tail latency of high-priority transactions 13x lower than that of low-priority ones. With an abort-aware priority assignment policy, Polaris can deliver 1.9x higher throughput and 17x lower tail latency compared to Silo for high-contention workloads.},
+  journal    = {Proc. ACM Manag. Data},
+  month      = {may},
+  articleno  = {44},
+  numpages   = {24},
+  keywords   = {OLTP, optimistic concurrency control, transaction priority, tail latency}
+}
+
+@misc{postgres-visibility,
+  author = {Cary Huang},
+  title  = {A Deeper Look Inside PostgreSQL Visibility Check Mechanism},
+  url    = {https://www.highgo.ca/2024/04/19/a-deeper-look-inside-postgresql-visibility-check-mechanism/},
+  month  = {April},
+  year   = {2024}
+}
+
+@book{postgresql,
+  title     = {PostgreSQL: introduction and concepts},
+  author    = {Momjian, Bruce},
+  volume    = {192},
+  year      = {2001},
+  publisher = {Addison-Wesley New York}
+}
+
+@misc{postgresql-slru,
+  author       = {{PostgreSQL}},
+  title        = {{PostgreSQL Source Code: src/backend/access/transam/slru.c}},
+  howpublished = {Source Code Repository},
+  year         = {2025},
+  url          = {https://github.com/postgres/postgres/blob/master/src/backend/access/transam/slru.c},
+  note         = {Accessed on July 15, 2025}
+}
+
+@inproceedings{qian2024epic,
+  author    = {Shujian Qian and Ashvin Goel},
+  title     = {{Massively Parallel {Multi-Versioned} Transaction Processing}},
+  booktitle = {18th USENIX Symposium on Operating Systems Design and Implementation (OSDI 24)},
+  year      = {2024},
+  isbn      = {978-1-939133-40-3},
+  address   = {Santa Clara, CA},
+  pages     = {765--781},
+  url       = {https://www.usenix.org/conference/osdi24/presentation/qian},
+  publisher = {USENIX Association},
+  month     = jul
+}
+
+@inproceedings{quartet,
+  author    = {Francis Deslauriers and Peter McCormick and George
+               Amvrosiadis and Ashvin Goel and Angela Demke Brown},
+  title     = {Quartet: Harmonizing Task Scheduling and Caching for
+               Cluster Computing},
+  booktitle = {8th USENIX Workshop on Hot Topics in Storage and File
+               Systems (HotStorage 16)},
+  year      = {2016},
+  address   = {Denver, CO},
+  url       = {https://www.usenix.org/conference/hotstorage16/workshop-program/presentation/deslauriers},
+  publisher = {USENIX Association}
+}
+
+@misc{redis,
+  title  = {Redis},
+  author = {Redis},
+  year   = {2022},
+  url    = {https://redis.io/}
+}
+
+@article{redshift,
+  title     = {The evolution of Amazon Redshift},
+  author    = {Pandis, Ippokratis},
+  journal   = {Proceedings of the VLDB Endowment},
+  volume    = {14},
+  number    = {12},
+  pages     = {3162--3174},
+  year      = {2021},
+  publisher = {VLDB Endowment}
+}
+
+@article{reed1983mvto,
+  author     = {Reed, David P.},
+  title      = {Implementing atomic actions on decentralized data},
+  year       = {1983},
+  issue_date = {Feb. 1983},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {1},
+  number     = {1},
+  issn       = {0734-2071},
+  url        = {https://doi.org/10.1145/357353.357355},
+  doi        = {10.1145/357353.357355},
+  journal    = {ACM Trans. Comput. Syst.},
+  month      = {feb},
+  pages      = {3–23},
+  numpages   = {21},
+  keywords   = {two-phase commit, time-domain addressing, stable storage, nested atomic actions}
+}
+
+@misc{rocksdb,
+  title        = {RocksDB},
+  author       = {{Facebook, Inc.}},
+  year         = 2013,
+  howpublished = {\url{https://github.com/facebook/rocksdb}}
+}
+
+@misc{rocksdb-fractional,
+  optkey       = {},
+  author       = {RocksDB},
+  title        = {Indexing SST Files for Better Lookup Performance},
+  howpublished = {\url{https://rocksdb.org/blog/2014/04/21/indexing-sst-files-for-better-lookup-performance.html}},
+  optmonth     = {},
+  year         = {2014},
+  optnote      = {},
+  optannote    = {}
+}
+
+@misc{rocksdb-merge-operator,
+  optkey       = {},
+  author       = {RocksDB},
+  title        = {Merge Operator},
+  howpublished = {\url{https://github.com/facebook/rocksdb/wiki/Merge-Operator}},
+  optmonth     = {},
+  optyear      = {},
+  optnote      = {},
+  optannote    = {}
+}
+
+@misc{rocksdb-optane-block-align,
+  author = {RocksDB},
+  title  = {Issue \#6448: read performance issue related to use\_direct\_reads},
+  url    = {https://github.com/facebook/rocksdb/issues/6448}
+}
+
+@article{Rodeh08,
+  author        = {Rodeh, Ohad},
+  title         = {B-trees, Shadowing, and Clones},
+  journal       = {Transactions on Storage},
+  optissue_date = {February 2008},
+  optvolume     = {3},
+  optnumber     = {4},
+  optmonth      = feb,
+  year          = {2008},
+  optissn       = {1553-3077},
+  optpages      = {2:1--2:27},
+  optarticleno  = {2},
+  optnumpages   = {27},
+  opturl        = {http://doi.acm.org/10.1145/1326542.1326544},
+  optdoi        = {10.1145/1326542.1326544},
+  optacmid      = {1326544},
+  optpublisher  = {ACM},
+  optaddress    = {New York, NY, USA},
+  optkeywords   = {Shadowing, b-trees, concurrency, copy-on-write, snapshots}
+}
+
+@misc{schlladb-write-amp,
+  title  = {Scylla’s Compaction Strategies Series: Space Amplification in Size-Tiered Compactio},
+  url    = {https://www.scylladb.com/2018/01/17/compaction-series-space-amplification/},
+  author = {Nadav Har'El},
+  year   = {2018}
+}
+
+@misc{scylla,
+  title        = {{ScyllaDB: The real-time big data database}},
+  author       = {Scylla, Inc.},
+  year         = {2019},
+  howpublished = {\url{https://www.scylladb.com}}
+}
+
+@misc{scylla-ruination,
+  title  = {{Scylla Summit 2017: How to Ruin Your Workload's Performance by Choosing the Wrong Compaction Strategy}},
+  author = {Nadav Har'El and Raphael Carvalho},
+  year   = 2017,
+  url    = {https://www.slideshare.net/ScyllaDB/scylla-summit-2017-how-to-ruin-your-performance-by-choosing-the-wrong-compaction-strategy}
+}
+
+@misc{scylladb-compaction,
+  optkey       = {},
+  author       = {ScyllaDB, Inc.},
+  title        = {Choose a Compaction Strategy},
+  howpublished = {\url{https://docs.scylladb.com/architecture/compaction/compaction-strategies/}},
+  optmonth     = {},
+  optyear      = {},
+  optnote      = {},
+  optannote    = {}
+}
+
+@inproceedings{shetty2013building,
+  author    = {Shetty, Pradeep J. and Spillane, Richard P. and
+               Malpani, Ravikant R. and Andrews, Binesh and
+               Seyster, Justin and Zadok, Erez},
+  booktitle = {Proceedings of the 11th USENIX Conference on File
+               and Storage Technologies (FAST 13)},
+  pages     = {17--30},
+  title     = {Building Workload-Independent Storage with VT-trees},
+  year      = {2013}
+}
+
+@inproceedings{snowflake,
+  title     = {The snowflake elastic data warehouse},
+  author    = {Dageville, Benoit and Cruanes, Thierry and Zukowski, Marcin and Antonov, Vadim and Avanes, Artin and Bock, Jon and Claybaugh, Jonathan and Engovatov, Daniel and Hentschel, Martin and Huang, Jiansheng and others},
+  booktitle = {Proceedings of the 2016 International Conference on Management of Data},
+  pages     = {215--226},
+  year      = {2016}
+}
+
+@article{SolomonKi2016,
+  author  = {Brad Solomon and Carl Kingsford},
+  title   = {Fast search of thousands of short-read sequencing experiments},
+  journal = {Nature Biotechnology},
+  year    = {2016}
+}
+
+@inproceedings{splinterdb,
+  title     = {SplinterDB: Closing the Bandwidth Gap for NVMe Key-Value Stores},
+  author    = {Conway, Alexander and Gupta, Abhishek and Chidambaram, Vijay and Farach-Colton, Martin and Spillane, Richard and Tai, Amy and Johnson, Rob},
+  booktitle = {2020 USENIX Annual Technical Conference (USENIX ATC 20)},
+  pages     = {49--63},
+  year      = {2020}
+}
+
+@inproceedings{stormaint,
+  author    = {Amvrosiadis, George and Brown, Angela Demke and Goel, Ashvin},
+  title     = {Opportunistic Storage Maintenance},
+  booktitle = {Proceedings of the 25th Symposium on Operating Systems Principles},
+  series    = {SOSP '15},
+  year      = {2015},
+  isbn      = {978-1-4503-3834-9},
+  location  = {Monterey, California},
+  pages     = {457--473},
+  numpages  = {17},
+  url       = {http://doi.acm.org/10.1145/2815400.2815424},
+  doi       = {10.1145/2815400.2815424},
+  acmid     = {2815424},
+  publisher = {ACM},
+  address   = {New York, NY, USA}
+}
+
+@misc{stxxl-btree,
+  title  = {{STXXL: Map (B+-tree)}},
+  author = {Roman Dementiev},
+  year   = {2006},
+  url    = {https://stxxl.org/tags/1.4.1/design_map.html}
+}
+
+@article{sundial,
+  author     = {Yu, Xiangyao and Xia, Yu and Pavlo, Andrew and Sanchez, Daniel and Rudolph, Larry and Devadas, Srinivas},
+  title      = {Sundial: Harmonizing Concurrency Control and Caching in a Distributed OLTP Database Management System},
+  year       = {2018},
+  issue_date = {June 2018},
+  publisher  = {VLDB Endowment},
+  volume     = {11},
+  number     = {10},
+  issn       = {2150-8097},
+  url        = {https://doi.org/10.14778/3231751.3231763},
+  doi        = {10.14778/3231751.3231763},
+  abstract   = {Distributed transactions suffer from poor performance due to two major limiting factors. First, distributed transactions suffer from high latency because each of their accesses to remote data incurs a long network delay. Second, this high latency increases the likelihood of contention among distributed transactions, leading to high abort rates and low performance.We present Sundial, an in-memory distributed optimistic concurrency control protocol that addresses these two limitations. First, to reduce the transaction abort rate, Sundial dynamically determines the logical order among transactions at runtime, based on their data access patterns. Sundial achieves this by applying logical leases to each data element, which allows the database to dynamically calculate a transaction's logical commit timestamp. Second, to reduce the overhead of remote data accesses, Sundial allows the database to cache remote data in a server's local main memory and maintains cache coherence. With logical leases, Sundial integrates concurrency control and cache coherence into a simple unified protocol. We evaluate Sundial against state-of-the-art distributed concurrency control protocols. Sundial outperforms the next-best protocol by up to 57\% under high contention. Sundial's caching scheme improves performance by up to 4.6\texttimes{} in workloads with high access skew.},
+  journal    = {Proc. VLDB Endow.},
+  month      = {jun},
+  pages      = {1289–1302},
+  numpages   = {14}
+}
+
+@misc{tachyon-alluxio,
+  title = {Tachyon: Reliable, Memory Speed Storage for Cluster Computing Frameworks},
+  note  = {\url{https://people.csail.mit.edu/matei/papers/2014/socc_tachyon.pdf}}
+}
+
+@misc{Tokutek14,
+  author     = {{Tokutek, Inc.}},
+  key        = {tokutek},
+  note       = {\url{http://www.tokutek.com}},
+  title      = {{TokuDB}},
+  url        = {http://www.tokutek.com},
+  year       = {2014},
+  bdsk-url-1 = {http://www.tokutek.com}
+}
+
+@techreport{tpcc,
+  author      = {Transaction Processing Performance Council},
+  title       = {TPC Benchmark C Standard Specification},
+  institution = {Transaction Processing Performance Council},
+  number      = {TPC-C Rev. 5.11.0},
+  year        = {2010},
+  month       = {Febuary},
+  url         = {https://www.tpc.org/tpc_documents_current_versions/pdf/tpc-c_v5.11.0.pdf}
+}
+
+@misc{tsl-hopscotch,
+  title  = {{A C++ implementation of a fast hash map and hash set using hopscotch hashing}},
+  author = {Tessil},
+  year   = {2019},
+  url    = {https://github.com/Tessil/hopscotch-map}
+}
+
+@misc{tsl-robinhood,
+  title  = {{A C++ implementation of a fast hash map and hash set using robin hood hashing}},
+  author = {Tessil},
+  year   = {2019},
+  url    = {https://github.com/Tessil/robin-map}
+}
+
+@inproceedings{tu13silo,
+  author    = {Tu, Stephen and Zheng, Wenting and Kohler, Eddie and Liskov, Barbara and Madden, Samuel},
+  title     = {Speedy Transactions in Multicore In-Memory Databases},
+  year      = {2013},
+  booktitle = {Proceedings of the Twenty-Fourth ACM Symposium on Operating Systems Principles}
+}
+
+@inproceedings{umbra,
+  title     = {Umbra: A Disk-Based System with In-Memory Performance.},
+  author    = {Neumann, Thomas and Freitag, Michael J},
+  booktitle = {CIDR},
+  volume    = {20},
+  pages     = {29},
+  year      = {2020}
+}
+
+@article{umbra-cc,
+  title     = {Memory-optimized multi-version concurrency control for disk-based database systems},
+  author    = {Freitag, Michael and Kemper, Alfons and Neumann, Thomas},
+  journal   = {Proceedings of the VLDB Endowment},
+  volume    = {15},
+  number    = {11},
+  pages     = {2797--2810},
+  year      = {2022},
+  publisher = {VLDB Endowment}
+}
+
+@inproceedings{vasudevan2012using,
+  author       = {Vasudevan, Vijay and Kaminsky, Michael and Andersen,
+                  David G.},
+  booktitle    = {Proceedings of the Third ACM Symposium on Cloud
+                  Computing (SOCC 12)},
+  organization = {ACM},
+  pages        = {8},
+  title        = {Using Vector Interfaces To Deliver Millions Of IOPS
+                  From A Networked Key-Value Storage Server},
+  year         = {2012}
+}
+
+@inproceedings{vdfs15,
+  author    = {Luke Lu and Wenguang Wang and Maxime Austruy and Zhichao Li and George Huang and Ankur Pai and Christos Karamanolis},
+  title     = {{VDFS}: A Cloud-Centric Virtual Distributed File System},
+  booktitle = {Proceedings of VMware RADIO 2015},
+  month     = May,
+  year      = {2015}
+}
+
+
+@inproceedings{VerbitskiGuSa17,
+  author    = {Verbitski, Alexandre and Gupta, Anurag and Saha, Debanjan and Brahmadesam, Murali and Gupta, Kamal and Mittal, Raman and Krishnamurthy, Sailesh and Maurice, Sandor and Kharatishvili, Tengiz and Bao, Xiaofeng},
+  title     = {Amazon Aurora: Design Considerations for High Throughput Cloud-Native Relational Databases},
+  year      = {2017},
+  isbn      = {9781450341974},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/3035918.3056101},
+  doi       = {10.1145/3035918.3056101},
+  abstract  = {Amazon Aurora is a relational database service for OLTP workloads offered as part of Amazon Web Services (AWS). In this paper, we describe the architecture of Aurora and the design considerations leading to that architecture. We believe the central constraint in high throughput data processing has moved from compute and storage to the network. Aurora brings a novel architecture to the relational database to address this constraint, most notably by pushing redo processing to a multi-tenant scale-out storage service, purpose-built for Aurora. We describe how doing so not only reduces network traffic, but also allows for fast crash recovery, failovers to replicas without loss of data, and fault-tolerant, self-healing storage. We then describe how Aurora achieves consensus on durable state across numerous storage nodes using an efficient asynchronous scheme, avoiding expensive and chatty recovery protocols. Finally, having operated Aurora as a production service for over 18 months, we share the lessons we have learnt from our customers on what modern cloud applications expect from databases.},
+  booktitle = {Proceedings of the 2017 ACM International Conference on Management of Data},
+  pages     = {1041–1052},
+  numpages  = {12},
+  keywords  = {databases, distributed systems, log processing, oltp, performance, quorum models, recovery, replication},
+  location  = {Chicago, Illinois, USA},
+  series    = {SIGMOD '17}
+}
+
+@misc{wiredtiger,
+  optkey       = {},
+  author       = {WiredTiger},
+  title        = {Making big data roar},
+  howpublished = {\url{http://www.wiredtiger.com/}},
+  optmonth     = {},
+  year         = {2020},
+  optnote      = {},
+  optannote    = {}
+}
+
+@inproceedings{wolf2015evaluation,
+  title        = {An evaluation of strict timestamp ordering concurrency control for main-memory database systems},
+  author       = {Wolf, Stephan and M{\"u}he, Henrik and Kemper, Alfons and Neumann, Thomas},
+  booktitle    = {In Memory Data Management and Analysis: First and Second International Workshops, IMDM 2013, Riva del Garda, Italy, August 26, 2013, IMDM 2014, Hongzhou, China, September 1, 2014, Revised Selected Papers 1},
+  pages        = {82--93},
+  year         = {2015},
+  organization = {Springer}
+}
+
+
+@inproceedings{wolf2015sto,
+  title        = {An evaluation of strict timestamp ordering concurrency control for main-memory database systems},
+  author       = {Wolf, Stephan and M{\"u}he, Henrik and Kemper, Alfons and Neumann, Thomas},
+  booktitle    = {In Memory Data Management and Analysis: First and Second International Workshops, IMDM 2013, Riva del Garda, Italy, August 26, 2013, IMDM 2014, Hongzhou, China, September 1, 2014, Revised Selected Papers 1},
+  pages        = {82--93},
+  year         = {2015},
+  organization = {Springer}
+}
+
+
+@article{wu2017mvcc,
+  author    = {Wu, Yingjun and Arulraj, Joy and Lin, Jiexi and Xian, Ran and Pavlo, Andrew},
+  title     = {An empirical evaluation of in-memory multi-version concurrency control},
+  year      = {2017},
+  publisher = {VLDB Endowment},
+  volume    = {10},
+  number    = {7},
+  issn      = {2150-8097},
+  url       = {https://doi.org/10.14778/3067421.3067427},
+  doi       = {10.14778/3067421.3067427},
+  abstract  = {Multi-version concurrency control (MVCC) is currently the most popular transaction management scheme in modern database management systems (DBMSs). Although MVCC was discovered in the late 1970s, it is used in almost every major relational DBMS released in the last decade. Maintaining multiple versions of data potentially increases parallelism without sacrificing serializability when processing transactions. But scaling MVCC in a multi-core and in-memory setting is non-trivial: when there are a large number of threads running in parallel, the synchronization overhead can outweigh the benefits of multi-versioning.To understand how MVCC perform when processing transactions in modern hardware settings, we conduct an extensive study of the scheme's four key design decisions: concurrency control protocol, version storage, garbage collection, and index management. We implemented state-of-the-art variants of all of these in an in-memory DBMS and evaluated them using OLTP workloads. Our analysis identifies the fundamental bottlenecks of each design choice.},
+  journal   = {Proc. VLDB Endow.},
+  month     = {mar},
+  pages     = {781–792},
+  numpages  = {12}
+}
+
+
+@misc{xxhash,
+  author = {Yann Collet},
+  title  = {xxHash - Extremely fast hash algorithm},
+  \url   = {https://github.com/Cyan4973/xxHash}
+}
+
+
+@incollection{ycsb,
+  author    = {Steffen Friedrich and
+               Norbert Ritter},
+  title     = {{YCSB}},
+  booktitle = {Encyclopedia of Big Data Technologies},
+  publisher = {Springer},
+  year      = {2019}
+}
+
+
+@article{yu2014staring,
+  title     = {Staring into the abyss: An evaluation of concurrency control with one thousand cores},
+  author    = {Yu, Xiangyao and Bezerra, George and Pavlo, Andrew and Devadas, Srinivas and Stonebraker, Michael},
+  year      = {2014},
+  publisher = {Association for Computing Machinery (ACM)}
+}
+
+
+@inproceedings{yu2016tictoc,
+  title     = {{Tictoc: Time traveling optimistic concurrency control}},
+  author    = {Yu, Xiangyao and Pavlo, Andrew and Sanchez, Daniel and Devadas, Srinivas},
+  booktitle = {Proceedings of the 2016 International Conference on Management of Data},
+  pages     = {1629--1642},
+  year      = {2016}
+}
+
+@misc{yugabyte,
+  optkey       = {},
+  author       = {Yugabyte},
+  title        = {The Leading High-Performance Distributed SQL Database},
+  howpublished = {\url{https://www.yugabyte.com/}},
+  optmonth     = {},
+  optyear      = {2020},
+  optnote      = {},
+  optannote    = {}
 }

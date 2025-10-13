@@ -1,12 +1,167 @@
 
-{\color{orange} Insert introduction here.}
+Large key-value stores are the basis of many applications, such as
+databases and file systems. Many such applications must support not
+only single-key operations, but must also make sequences of operations
+atomic. As a result, many state-of-the-art key-value stores provide
+transactional
+semantics~\citep{rocksdb,cassandra,mongodb,couchbase,redis,berkeleydb,lmdb}.
 
-This chapter typically includes: 
+\emph{Concurrency control (CC) mechanisms} govern how transactions
+interact with each other and ensure consistency is maintained in the
+kv-store. The choice of the CC mechanism can highly influence the
+performance of the overall system, as synchronization and memory
+overheads, as well as the abort rate, all depend upon it. Therefore,
+significant research effort has gone into developing good
+concurrency-control
+mechanisms~\citep{yu2016tictoc,wolf2015evaluation,tu13silo,plor,polaris,2PLFS,chardonnay,bamboo}.
+
+An ideal CC mechanism would have low CPU overhead, low space overhead,
+and low abort rate. Achieving all three has been challenging. For
+example, two-phase locking (2PL) makes use of locks for items accessed
+by transactions. This can be memory-efficient; locks are needed only
+for keys accessed by ongoing transactions, and thus the memory
+footprint is proportional to the total size of the active
+transactions. However, holding all these locks for
+the entire duration of the transaction can limit throughput in
+high-concurrency scenarios.
+
+In contrast, timestamp-based schemes, such as Strict Timestamp
+Ordering (STO)~\citep{bernstein1987concurrency}, Multi-Version
+Timestamp Ordering (MVTO)~\citep{reed1983mvto}, and
+TicToc~\citep{yu2016tictoc}, can be extremely effective at avoiding CPU
+bottlenecks and reducing abort rates. Unfortunately, timestamp-based
+CC mechanisms typically have a larger memory footprint than, e.g. 2PL,
+because they maintain timestamps for each tuple in the database,
+whereas 2PL needs locks only for keys in active transactions.
+Moreover, timestamps are typically embedded within the database
+tuples, which can lead to extra I/O in disk-based databases.  For
+example, in STO, every tuple access must read the old timestamps and
+write updated timestamps to the database.  This means that reading a
+tuple also requires writing that tuple, and blindly overwriting a
+tuple requires reading the old value first. As a result, a CC
+mechanism that maintains per-tuple metadata can incur high I/O cost
+and substantially reduce throughput in a disk-based database.
+Consequently, timestamp-based CC mechanisms are rarely used in on-disk
+databases.
+
+This leaves disk-based databases with a vexing trade-off.  2PL has
+small memory footprint but high CPU overhead, whereas timestamp based
+mechanisms have large storage and I/O overheads.  Unfortunately, CPU
+overheads cannot be ignored in modern disk-based databases based on
+fast SSDs and modern data structures, such as LSM
+trees~\citep{OneillChGaOn96} and \bets~\citep{BrodalFa03}.
+
+\paragraph{Our contributions.}
+We show how to overcome the memory footprint overhead of
+timestamp-based CC mechanisms, unlocking the ability to use them in
+on-disk databases. As a result, we obtain new CC mechanisms that offer
+up to 14$\times$ greater goodput than commonly used CCs, such as 2PL
+and OCC. Specifically, we:
 \begin{itemize}
-    \item a brief overview
-    \item a background section
-    \item a challenges section
-    \item a section about your approach
-    \item a section (or subsection in the approach section) giving a dissertation outline (a roadmap of the rest of the thesis)
+  \item Show how to decompose timestamp-based CC mechanisms into two
+        parts: a timestamp storage system and a CC protocol.
+  \item Define \defn{approximate timestamp storage}, which identifies
+        exactly when and how the storage system can approximate timestamps
+        without affecting the correctness of the CC protocol.
+  \item Implement a general approximate timestamp-storage data
+        structure, which we call \sketchname.
+  \item Combine \sketchname with three CC protocols: STO, MVTO, and
+        TicToc.
+  \item Evaluate the resulting CC mechanisms in SplinterDB, a
+        state-of-the-art kv-store, and compare them against traditional CC
+        mechanisms, such as 2PL and OCC.
+  \item Show that \sketchname enables modern timestamp-based CC
+        mechanisms, such as TicToc, to offer up to 14$\times$ greater goodput
+        than 2PL and OCC in an on-disk database while maintaining a small
+        memory footprint.
 \end{itemize}
-Alternatively: you could choose to remove the background section and make a separate background chapter directly following this introduction chapter.
+
+The key observation is that the timestamp storage system must provide
+precise timestamps only of keys in use by on-going transactions.  For
+all other keys, it can provide merely upper bounds on their
+timestamps.  Thus we can use a hashtable to store timestamps of in-use
+keys and a sketch data structure for all the other keys in the
+database, greatly reducing the memory required to store timestamps.
+The system can then use any eviction policy for moving inactive keys
+from the hashtable to the sketch.  We call this hashtable-sketch combo
+an \sketchname.  Interestingly, both components are required for
+correctness. See \Cref{sec:requirements}.
+
+The approximations made by the sketch will sometimes induce aborts by
+the CC protocol.  Thus the goal is to size the hashtable and the
+sketch to achieve both low memory usage and low abort rate. There are
+two ways to control this trade-off: the hashtable eviction policy and
+the size of the sketch. The eviction policy governs how precisely the
+storage system remembers timestamps of recently accessed keys.  For
+example, an aggressive eviction policy could evict keys as soon as
+they become inactive, minimizing memory used by the hashtable but
+possibly increasing abort rates due to approximations in the sketch.
+A lazy policy, such as LRU or CLOCK, would allow the hashtable to
+store precise timestamps of recently active keys, increasing memory
+usage from the hashtable but potentially reducing the abort rate.
+Similarly, we can trade off memory and abort rate by adjusting the
+size of the sketch.  A larger sketch will have better approximations
+and hence induce fewer aborts.
+
+\paragraph{Implementation and evaluation.}
+We implemented two \sketchname variants that represent extremal points
+in the design-space described above.  In \fsketchname, we use the
+smallest possible sketch---just a single counter that upper bounds the
+timestamps of all keys not in the hashtable---and evict keys from the
+hash table lazily using CLOCK.  In \psketchname, we use the smallest
+possible hashtable---we evict keys as soon as they become
+inactive---and use a variant of count-min sketch~\citep{CormodeMu05}
+for evicted keys. In our experiments, both schemes use the same total
+amount of memory.
+
+We compose \sketchname with three timestamp-based mechanisms; the
+well-known Strict Timestamp Ordering
+(STO)~\citep{bernstein1987concurrency} mechanism, Multi-Version
+Timestamp Ordering (MVTO)~\citep{reed1983mvto}, a timestamp ordering
+multi-version concurrency control (MVCC) variant, and a newer
+optimistic CC mechanism called TicToc~\citep{yu2016tictoc}.
+
+We also implemented disk-based and RAM-based exact timestamp storage
+systems as baselines. The disk-based timestamp storage scheme enables
+us to measure the I/O savings from approximation. The RAM-based scheme
+is not practical for large databases, but it enables us to measure the
+impact of approximation on abort rate. We benchmark the resulting CC
+mechanisms on SplinterDB~\citep{splinterdb}, a highly concurrent
+write-optimized kv-store for modern storage.
+
+Our main result is that approximate timestamp storage can deliver substantial performance gains by enabling us to use advanced concurrency-control mechanisms, such as TicToc and MVTO, in on-disk databases.
+For example, in our experiments, TicToc with approximate timestamp
+storage (both \fsketchname and \psketchname) outperformed 2PL and OCC
+by up to 14$\times$ on some workloads, and was never slower. In fact,
+TicToc with approximate timestamp storage was the fastest (or tied for
+fastest) of all the concurrency-control mechanisms in all but one of
+our benchmarks, where MVTO with approximate timestamp storage was the
+fastest.
+
+Second, approximate timestamp storage is essential to achieving the
+performance of modern concurrency-control mechanisms in on-disk
+databases.  For example, TicToc with approximate timestamp storage was
+up to 5.9$\times$ faster than TicToc with exact timestamps stored on
+disk. STO and MVTO showed 1.8$\times$ and over 160$\times$ between
+approximate and disk-based timestamp storage, respectively.
+
+Furthermore, for STO and TicToc, using \sketchname of only 32KiB
+yields nearly the same performance as an idealized, \emph{in-memory},
+implementation that keeps, in RAM, timestamps for every record in the
+database (see \Cref{fig:motivation}).
+
+Finally, we find that, although both \fsketchname and \psketchname
+substantially outperform other CC mechanisms, \psketchname offers more
+robust performance.  In particular, our \psketchname significantly
+outperforms \fsketchname on several workloads and is never
+significantly slower.
+
+% This chapter typically includes: 
+% \begin{itemize}
+%     \item a brief overview
+%     \item a background section
+%     \item a challenges section
+%     \item a section about your approach
+%     \item a section (or subsection in the approach section) giving a dissertation outline (a roadmap of the rest of the thesis)
+% \end{itemize}
+% Alternatively: you could choose to remove the background section and make a separate background chapter directly following this introduction chapter.

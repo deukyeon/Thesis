@@ -1,0 +1,361 @@
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{property}[theorem]{Property}
+
+\newcommand{\defn}[1]{\textbf{\textit{#1}}\xspace}
+
+\newcommand{\bets}{B\texorpdfstring{$^\varepsilon$}{\^{}e}-trees\xspace}
+\newcommand{\btree}{B-tree\xspace}
+\newcommand{\btrees}{B-trees\xspace}
+
+\newcommand{\Sketchname}{FPSketch\xspace}
+\newcommand{\sketchname}{\Sketchname}
+\newcommand{\Fsketchname}{Focus-Counter\xspace}
+\newcommand{\fsketchname}{\Fsketchname}
+\newcommand{\Psketchname}{Focus-Sketch\xspace}
+\newcommand{\psketchname}{\Psketchname}
+
+\algdef{SE}% flags used internally to indicate we're defining a new block statement
+[STRUCT]% new block type, not to be confused with loops or if-statements
+{Struct}% "\Struct{name}" will indicate the start of the struct declaration
+{EndStruct}% "\EndStruct" ends the block indent
+[1]% There is one argument, which is the name of the data structure
+{\textbf{struct} \textsc{#1}}% typesetting of the start of a struct
+{\textbf{end struct}}% typesetting the end of the struct
+
+\algblockdefx{Atomic}{EndAtomic}{\textbf{begin atomic section}}{\textbf{end atomic section}}
+
+\makeatletter
+\newcommand{\algmargin}{\the\ALG@thistlm}
+\makeatother
+\newlength{\ifwidth}
+\settowidth{\ifwidth}{\algorithmicif\ }
+\algdef{SE}[parIF]{parIf}{EndparIf}[1]
+  {\parbox[t]{\dimexpr\linewidth-\algmargin}{%
+     \hangindent\ifwidth\strut\algorithmicif\ #1\ \algorithmicthen\strut}}{\algorithmicend\ \algorithmicif}
+\algdef{Ce}[parELSE]{parIF}{parElse}{EndparIf}{\algorithmicelse}
+
+\newcommand{\declareKeyword}[1]{\expandafter\newcommand\csname #1\endcsname{\textsc{#1}\xspace}}
+\declareKeyword{lock}
+\declareKeyword{TryLock}
+\declareKeyword{unlock}
+\declareKeyword{abort}
+\declareKeyword{locked}
+\declareKeyword{unlocked}
+
+\newcommand{\rts}[1]{#1.\textit{rts}\xspace}
+\newcommand{\wts}[1]{#1.\textit{wts}\xspace}
+\newcommand{\val}[1]{#1.\textit{value}\xspace}
+\newcommand{\tuple}[1]{#1.\textit{tuple}\xspace}
+\newcommand{\key}[1]{#1.\textit{key}\xspace}
+\newcommand{\tuplerts}[1]{\tuple{#1}.\textit{rts}\xspace}
+\newcommand{\tuplewts}[1]{\tuple{#1}.\textit{wts}\xspace}
+\newcommand{\tupleval}[1]{\tuple{#1}.\textit{value}\xspace}
+\newcommand{\dbread}[1]{\fcolorbox{green}{white}{#1}}
+\newcommand{\dbwrite}[1]{\fcolorbox{red}{white}{#1}}
+\newcommand{\timestamps}[1]{#1.\textit{timestamps}\xspace}
+
+\newcommand{\commitTime}{\ensuremath{\tau}\xspace}
+\newcommand{\Assign}[2]{\State #1 $\leftarrow$ #2}
+
+\newcommand{\DeclareVar}[3]{\State \textbf{#1} \textit{#2}#3}
+
+\newcommand{\hashtable}[1]{\textit{hashtable}\xspace}
+\newcommand{\hashtableput}[2]{\textit{hashtable}.\textsc{Put}(#1, #2)\xspace}
+\newcommand{\hashtableget}[1]{\textit{hashtable}.\textsc{GetItemPtr}(#1)\xspace}
+\newcommand{\hashtableremove}[1]{\textit{hashtable}.\textsc{Remove}(#1)\xspace}
+\newcommand{\sketchput}[2]{\textit{sketch}.\textsc{Put}(#1, #2)\xspace}
+\newcommand{\sketchget}[1]{\textit{sketch}.\textsc{Get}(#1)\xspace}
+\newcommand{\timestampmax}{\textsc{TimestampMax}\xspace}
+\newcommand{\timestampmin}{\textsc{TimestampMin}\xspace}
+\newcommand{\timestampmaxfunc}[2]{\timestampmax(#1, #2)\xspace}
+\newcommand{\timestampminfunc}[2]{\timestampmin(#1, #2)\xspace}
+\newcommand{\refcount}[1]{#1.\textit{refcount}\xspace}
+\newcommand{\hash}[2]{\textsc{Hash}(#1, #2)\xspace}
+\newcommand{\atomicload}[1]{\textsc{AtomicLoad}(#1)\xspace}
+\newcommand{\atomicfetchadd}[2]{\textsc{AtomicFetchAdd}(#1, #2)\xspace}
+\newcommand{\atomiccas}[3]{\textsc{AtomicCompareExchange}(#1, #2, #3)\xspace}
+\newcommand{\tsdelta}[1]{#1.\textit{delta}\xspace}
+\newcommand{\dirtybit}[1]{#1.\textit{dirty\_bit}\xspace}
+
+
+
+\newcommand{\linestylekey}[1]{#1}
+
+\pgfplotsset{
+    every mark/.append style={solid},
+}
+
+\pgfplotsset{
+    LineStyle/.style={
+        mark size=1.5pt,
+        solid,
+    },
+    Disk-LineStyle/.style={
+        LineStyle,
+        color=red,
+        mark=pentagon,
+    },
+    Disk-Cache-LineStyle/.style={
+        LineStyle,
+        color=blue,
+        mark=+,
+    },
+    Counter-Lazy-LineStyle/.style={
+        LineStyle,
+        color=teal,
+        mark=triangle,
+    },
+    Memory-LineStyle/.style={
+        LineStyle,
+        color=black,
+        mark=x,
+    },
+    FPSketch-LineStyle/.style={
+        LineStyle,
+        color=violet,
+        mark=o,
+    },
+}
+
+\pgfplotsset{
+    LineStyle/.style={
+      mark size=1.5pt,
+    },
+    2PL-LineStyle/.style={
+      LineStyle,
+      color=teal,
+      mark=triangle,
+      solid,
+    },
+    KR-OCC-LineStyle/.style={
+      LineStyle,
+      color=teal,
+      mark=diamond,
+      solid,
+    },
+    KR-OCC-Serial-LineStyle/.style={
+      LineStyle,
+      color=teal,
+      mark=diamond,
+      solid,
+    },
+    KR-OCC-Parallel-LineStyle/.style={
+      LineStyle,
+      color=teal,
+      mark=square,
+      solid,
+    },
+    STO-Disk-LineStyle/.style={
+      LineStyle,
+      color=red,
+      mark=pentagon,
+      solid,
+    },
+    STO-Disk-Cache-LineStyle/.style={
+      LineStyle,
+      color=red,
+      mark=+,
+      solid,
+    },
+    STO-Memory-LineStyle/.style={
+      LineStyle,
+      color=red,
+      mark=x,
+      solid,
+    },
+    STO-FPSketch-LineStyle/.style={
+      LineStyle,
+      color=red,
+      mark=o,
+      solid,
+    },
+    TicToc-Disk-LineStyle/.style={
+      LineStyle,
+      color=violet,
+      mark=pentagon,
+      solid,
+    },
+    TicToc-Disk-Cache-LineStyle/.style={
+      LineStyle,
+      color=violet,
+      mark=+,
+      solid,
+    },
+    TicToc-Memory-LineStyle/.style={
+      LineStyle,
+      color=violet,
+      mark=x,
+      solid,
+    },
+    TicToc-FPSketch-LineStyle/.style={
+      LineStyle,
+      color=violet,
+      mark=o,
+      solid,
+    },
+    MVTO-Disk-LineStyle/.style={
+      LineStyle,
+      color=olive,
+      mark=pentagon,
+      solid,
+    },
+    MVTO-Disk-Cache-LineStyle/.style={
+      LineStyle,
+      color=olive,
+      mark=+,
+      solid,
+    },
+    MVTO-Memory-LineStyle/.style={
+      LineStyle,
+      color=olive,
+      mark=x,
+      solid,
+    },
+    MVTO-FPSketch-LineStyle/.style={
+      LineStyle,
+      color=olive,
+      mark=o,
+      solid,
+    },
+}
+
+\pgfplotsset{
+    BarStyle/.style={
+        },
+    Disk-BarStyle/.style={
+            BarStyle,
+            pattern=horizontal lines,
+            pattern color=red
+        },
+    Disk-Cache-BarStyle/.style={
+            BarStyle,
+            pattern=bricks,
+            pattern color=blue
+        },
+    Counter-Lazy-BarStyle/.style={
+            BarStyle,
+            pattern=crosshatch,
+            pattern color=teal
+        },
+    Memory-BarStyle/.style={
+            BarStyle,
+            fill=white
+        },
+    FPSketch-BarStyle/.style={
+            BarStyle,
+            fill=violet
+        }
+}
+
+\pgfplotsset{
+    BarStyle/.style={
+        },
+    2PL-BarStyle/.style={
+            BarStyle,
+            pattern=north west lines,
+            pattern color=black,
+        },
+    KR-OCC-BarStyle/.style={
+            BarStyle,
+            pattern=north east lines,
+            pattern color=black,
+        },
+    KR-OCC-Serial-BarStyle/.style={
+            BarStyle,
+            pattern=north east lines,
+            pattern color=black
+        },
+    KR-OCC-Parallel-BarStyle/.style={
+            BarStyle,
+            pattern=north west lines,
+            pattern color=black
+        },
+    STO-Disk-BarStyle/.style={
+            BarStyle,
+            pattern=grid,
+            pattern color=teal
+        },
+    STO-Disk-Cache-BarStyle/.style={
+            BarStyle,
+            pattern=bricks,
+            pattern color=teal
+        },
+    STO-Counter-Lazy-BarStyle/.style={
+            BarStyle,
+            pattern=north west lines,
+            pattern color=teal
+        },
+    STO-Memory-BarStyle/.style={
+            BarStyle,
+            pattern=crosshatch,
+            pattern color=teal
+        },
+    STO-FPSketch-BarStyle/.style={
+            BarStyle,
+            fill=teal
+        },
+    TicToc-Disk-BarStyle/.style={
+            BarStyle,
+            pattern=grid,
+            pattern color=violet
+        },
+    TicToc-Disk-Cache-BarStyle/.style={
+            BarStyle,
+            pattern=bricks,
+            pattern color=violet
+        },
+    TicToc-Counter-Lazy-BarStyle/.style={
+            BarStyle,
+            pattern=north west lines,
+            pattern color=violet
+        },
+    TicToc-Memory-BarStyle/.style={
+            BarStyle,
+            pattern=crosshatch,
+            pattern color=violet
+        },
+    TicToc-FPSketch-BarStyle/.style={
+            BarStyle,
+            fill=violet
+        },
+    MVTO-Disk-BarStyle/.style={
+            BarStyle,
+            pattern=grid,
+            pattern color=olive
+        },
+    MVTO-Disk-Cache-BarStyle/.style={
+            BarStyle,
+            pattern=bricks,
+            pattern color=olive
+        },
+    MVTO-Counter-Lazy-BarStyle/.style={
+            BarStyle,
+            pattern=north west lines,
+            pattern color=olive
+        },
+    MVTO-Memory-BarStyle/.style={
+            BarStyle,
+            pattern=crosshatch,
+            pattern color=olive
+        },
+    MVTO-FPSketch-BarStyle/.style={
+            BarStyle,
+            fill=olive
+        },
+}
+
+\pgfplotsset{
+    YCSBThroughputBarChartPlot/.style={
+        label style={font=\footnotesize},
+        ticklabel style={font=\ssmall},
+        major x tick style = transparent,
+        ymin=0,
+    },
+    AbortRateBarChartPlot/.style={
+        ymin=0,
+        label style={font=\footnotesize},
+        ticklabel style={font=\ssmall},
+        major x tick style = transparent,
+    }
+}

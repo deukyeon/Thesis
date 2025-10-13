@@ -1,0 +1,172 @@
+
+\section{Timestamp-Based Concurrency Control}
+\label{sec:background:tbcc}
+\defn{Timestamp-based} CC mechanisms employ timestamps to order
+transactions. At a high level, each transaction is assigned a
+timestamp that indicates when it serializes in relation to all other
+transactions;  a transaction $T_1$ with a timestamp $t_1 < t_2$ will
+generally be serialized before a transaction $T_2$ with timestamp
+$t_2$.
+
+A subclass of timestamp-based mechanisms, which we focus on in this
+paper, uses \emph{per-version read and write timestamps} to detect
+conflicts. These timestamps correspond to the timestamp of the most
+recent transaction that read or wrote the key, respectively. Using
+both types of timestamps can offer higher concurrency than using a
+single write timestamp because it allows multiple transactions to read
+simultaneously. To maintain correctness, a transaction $T$ must
+satisfy the following conditions in order to commit: (1) for every key
+$k$ accessed by $T$, $k.write\_timestamp < T.timestamp$ and (2) for
+every key $k$ in $T$'s write set, $k.read\_timestamp < T.timestamp$.
+The process of checking whether these conditions are met is known as
+\emph{validation}. A key feature of read/write timestamp-ordering
+mechanisms, which we leverage in this work, is that it is sufficient
+to maintain \emph{upper bounds} on the read and write timestamps of
+keys that are not involved in any current transactions. An
+overinflated read or write timestamp may cause unnecessary, or
+\emph{spurious} aborts, but will not jeopardize the consistency of the
+kv-store.
+
+Timestamp-based CC schemes differ in when and how they assign
+timestamps to transactions, when the validation is done, and when
+updates are made to the keys that are being written, among other
+things. In this paper, we focus on three variants in particular, known
+as \emph{Strict Timestamp Ordering
+  (STO)}~\citep{bernstein1987concurrency}, Multi-Version Timestamp
+Ordering (MVTO)~\citep{reed1983mvto}, and TicToc~\citep{yu2016tictoc},
+as three examples of how approximate timestamp storage can be used.
+Below, we briefly outline how each of these variants works.
+
+\paragraph{Strict Timestamp Ordering (STO).}
+In STO, each transaction is assigned a timestamp at the beginning of
+its execution by incrementing a global timestamp counter. Transactions
+are pessimistic; the first time a transaction $T$ accesses a key $k$,
+$T$ attempts to acquire $k$'s lock, waiting on the lock if it's
+already taken (the locks are necessary for a correct multi-threaded
+implementation of STO). Once a lock is acquired for a key $k$, $T$
+checks whether its timestamp satisfies the conditions outlined above
+with respect to $k$'s timestamps. If not, $T$ releases all locks and
+aborts. Otherwise, it continues. Transactions do not release locks
+until they finish, although a transaction may need to check the
+timestamps of a key more than once if it accesses the same key via
+both a read and a write. To commit, $T$ applies its changes to the
+data, updates the read timestamps of the keys in its read set and the
+write timestamps of the keys in its write set to its own timestamp,
+and releases all locks.
+
+\paragraph{Multi-Version Timestamp Ordering (MVTO).} MVTO is
+considered to be the original MVCC protocol~\citep{wu2017mvcc}. MVCC is
+useful for workloads that run long read-heavy transactions, since it
+allows readers to freely access old snapshots of the database.
+However, maintaining a history of updates to the records (versions),
+can be expensive in storage, memory, and computation for garbage
+collection and for finding the correct version for a transaction to
+access)~\citep{qian2024epic}.
+
+Like STO, MVTO serializes transactions according to the timestamps
+assigned at the beginning of transactions, from a global timestamp
+counter and conflicts are handled in the same way.
+
+\paragraph{TicToc.}
+TicToc, in contrast, is an optimistic concurrency control (OCC)
+scheme, and dynamically chooses timestamps for its transactions during
+validation. A transaction $T$ first reads all items in its read set
+without taking any locks. Then, during its validation phase, TicToc
+reads its read set, locks its write set, and assigns $T$ a timestamp
+that is (1) larger than the read timestamp of each data item in $T$'s
+write set and (2) larger or equal to the write timestamp of each item
+in $T$'s read set. It then verifies that no conflicting transactions
+have committed since it chose its timestamp. This approach minimizes
+the time between choosing a timestamp and actually committing, thereby
+minimizing aborts.
+
+\section{External-Memory Storage Systems}
+
+In this section, we explain hardware and software trends that have
+affected disk-based databases the last few decades.  The high-level
+take-aways are (1) concurrency has become more important due to
+increasing core counts and I/O parallelism in solid-state storage
+devices, (2) transaction overheads can be more prominent as storage
+device speeds have increased more than CPU and RAM speeds, and (3)
+modern storage data structures have performance characteristics that
+must be considered when designing CC mechanisms.
+
+Solid-state drives now support millions of I/Os per second and
+gigabytes/second of throughput, whereas spinning disks typically top
+out at around a thousand IOPS and a few hundred megabytes/second of
+bandwidth~\citep{crucial-t700-review}.  However, extracting the full
+performance of solid-state storage requires issuing multiple I/Os
+concurrently (i.e., maintaining a high ``queue
+depth'')~\citep{crucial-t700-review}.  If given only one I/O at a time,
+most drives support less than 100,000 IOPS, sometimes as few as 10,000
+IOPS~\citep{crucial-t700-review}.
+
+Over the last two decades, CPUs have gone from single cores to dozens,
+but the instructions executed per second on a single core has remained
+relatively flat~\citep{microprocessor-trend-data}.
+
+Together, these two facts mean that supporting a high degree of
+concurrency has become critical for disk-based database systems.
+Furthermore, I/O speeds have gone up more than CPU speeds.  For
+example, SSDs are about three to four orders of magnitude faster than
+spinning disks, in terms of IOPS, whereas today's multicore CPUs have
+increased total instruction throughput (across all cores) by only one
+to three orders of magnitude compared to single-core chips of the
+early 2000s~\citep{microprocessor-trend-data}.  This means that I/O
+cannot mask concurrency-control overheads to the same degree as 20
+years ago.
+
+Over the same time period, the data structures used for on-disk
+storage have also undergone a revolution due to the advent of
+\defn{write-optimized data structures}, such as log-structured merge
+trees (LSMs) and \bets. For example, mapped \bets, used in
+SplinterDB~\citep{splinterdb}, can ingest data orders of magnitude
+faster than older indexing structures, such as
+\btrees~\citep{splinterdb}, while supporting queries essentially as
+fast as in a \btree.  Consequently, modern storage systems can ingest
+new data much faster than they can query it.  For example, on some
+benchmarks, SplinterDB could perform more than 2M uniformly random
+insertions per second, compared to only about half a million uniformly
+random queries per second.  This is sometimes called the query/insert
+asymmetry~\citep{bender2015introduction}, and is consistent with
+theoretical lower bounds on the I/O costs of inserts and
+queries~\citep{Iacono2012UsingHT}, suggesting that this could be an
+enduring property of storage system performance.
+
+The query/insert asymmetry is important for timestamp-based schemes
+because, if a timestamp-based mechanism stores timestamps in a
+write-optimized structure, then it may need to query for the
+timestamps of each key written by a transaction, inadvertently
+piggy-backing a (slow) query onto every (fast) write performed by the
+transaction, disproportionately impacting overall throughput.
+
+Finally, we note that it is not always practical to store all
+timestamps in memory.  For example, Facebook reports that many of its
+workloads have kv-pairs of less than 100 bytes in
+size~\citep{DBLP:conf/fast/CaoDVD20,AtikogluXuFr12},
+so storing two 8-byte timestamps for each kv-pair, as required in STO
+and TicToc, would take about 16\% as much space as the data itself.
+However, Facebook also reports that many of its RocksDB instances have
+a RAM-to-disk ratio of less than 5\%, sometimes as little as
+3\%~\citep{DBLP:conf/fast/CaoDVD20}.  Even in other scenarios where
+kv-pairs are larger (reducing the relative overhead of timestamps) or
+RAM is more plentiful, timestamps can still eat up a substantial
+portion of RAM that could otherwise be used for caching or other
+purposes.
+
+\section{Count-Min Sketch}
+
+The count-min sketch (CMS)~\citep{CormodeMu05} was originally proposed
+as a data structure for providing approximate counts of the occurances
+of each item in a data stream.  The CMS maintains a two-dimensional
+table $A$ of height $h$ and width $w$. Upon observing an item $x$ in
+the stream, the CMS increments $A[i][h_i(x)]$ for each row $i$, where
+$h_i$ are all hash functions. The CMS estimates the number of
+occurances of an item $x$ as $CMS[x] = min_iA[i][h_i(x)]$.  The CMS
+obviously nver underestimates the count of an item, and guarantees
+that
+\[
+  \Pr[CMS[x] \leq c_x + n/w ] \geq 1 - e^{-d},
+\]
+where $c_x$ is the true count of $x$ and $n$ is the total number of
+observations added to the CMS.

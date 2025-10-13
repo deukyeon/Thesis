@@ -21,75 +21,97 @@
 
 
 %\usepackage{} -- add any other packages you want
-\usepackage{amsfonts}
-\usepackage{multirow,tabularx}
-\usepackage{listings}
-\usepackage{makecell}
-\usepackage[linesnumbered]{algorithm2e}
-\usepackage{amssymb}
-\usepackage{graphicx}
-\usepackage{amsmath}
-\usepackage{float}
-\usepackage{fullpage}
-\usepackage{mathrsfs}
-\usepackage{subcaption}
-\usepackage{hyperref}% http://ctan.org/pkg/hyperref
-\hypersetup{%
-  %colorlinks = true,
-  linkcolor  = black
-}
-\usepackage{mdwlist}
-\usepackage{xspace}
-\usepackage{setspace}
-\usepackage{times} % Set the typeface to Times Roman
-\usepackage[scaled]{helvet} % ss
-\usepackage{courier} % tt
-\normalfont
-\usepackage[T1]{fontenc}
+% --- FONT & ENCODING ---
+% These packages control the document's typeface and character encoding.
+\usepackage[T1]{fontenc}      % Specifies the output font encoding.
+\usepackage{times}            % Sets the main font to Times.
+\usepackage[scaled]{helvet}   % Sets the sans-serif font to Helvetica.
+\usepackage{courier}          % Sets the monospace font to Courier.
+\normalfont                  % Restores the main font defined by the document class.
+\usepackage{moresize}         % Provides additional font size commands.
+\usepackage{relsize}          % For relative font size adjustments.
+\usepackage{soul}             % For highlighting and letterspacing.
 
+% --- MATH ---
+% Packages for mathematical typesetting.
+\usepackage{amsmath}          % Core AMS math functionalities.
+\usepackage{amssymb}          % Extra AMS mathematical symbols.
+\usepackage{amsfonts}         % AMS fonts for math.
+\usepackage{amsthm}           % For theorem, proof, and definition environments.
+\usepackage{mathtools}        % Extends amsmath with more tools and fixes.
+\usepackage{mathrsfs}         % Provides the script font \mathscr.
+\usepackage{bbm}              % For blackboard bold fonts (e.g., \mathbbm{1}).
 
-%\usepackage[showframe=true]{geometry}
-\usepackage{changepage}
-\usepackage[labelfont=bf]{caption} % boldface caption title for floats
-\usepackage[square]{natbib}
-\usepackage{enumitem}
-\usepackage{natbib}
-\usepackage{array,multirow}
-\usepackage{fixltx2e}
-\usepackage{booktabs}
-\usepackage{bbm}
-\usepackage{soul}
-\usepackage{relsize}
-\usepackage{eso-pic}
-\usepackage{xspace}
-\usepackage{epsfig}
-\usepackage{graphicx}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{float}
-\usepackage{multirow}
-\usepackage{rotating}
-\usepackage{balance}
-\usepackage{wrapfig}
-\usepackage{enumerate}
-\usepackage{caption}
-\usepackage{framed}
-\usepackage{enumitem}
-\usepackage{multirow}
-\usepackage{graphicx}
-\usepackage{color}
-\usepackage{fixltx2e}
-%\usepackage{tkz-graph}
-\usepackage{caption}
-\usepackage{subcaption}
+% --- LAYOUT & UTILITIES ---
+% General-purpose packages for page layout and other utilities.
+\usepackage{fullpage}         % Reduces page margins to use more of the page.
+% \usepackage{geometry}       % A more flexible alternative to 'fullpage'.
+\usepackage{setspace}         % For controlling line spacing.
+\usepackage{changepage}       % For temporarily adjusting page layout.
+\usepackage{xspace}           % Smartly handles spacing after custom commands.
+\usepackage{pifont}           % Provides access to Pi and Zapf Dingbats fonts.
+\usepackage{color}            % Enables text and background coloring.
+\usepackage{balance}          % Balances columns on the last page.
+\usepackage{framed}           % Creates framed or shaded regions.
+\usepackage{scrextend}        % Provides features from KOMA-Script classes.
+\usepackage{eso-pic}          % Adds content to the background of pages.
+\usepackage{listings}         % For typesetting source code.
+
+% --- LISTS ---
+% For customizing list environments like itemize and enumerate.
+\usepackage{enumitem}         % Advanced control over list formatting.
+\usepackage{mdwlist}          % Additional compact list environments.
+
+% --- TABLES, FIGURES, & CAPTIONS ---
+% Tools for creating and managing floats like tables and figures.
+\usepackage{graphicx}         % The standard for including images.
+\usepackage{booktabs}         % Creates professional-looking tables.
+\usepackage{array}            % Extends options for table columns.
+\usepackage{multirow}         % Allows table cells to span multiple rows.
+\usepackage{tabularx}         % Creates tables with auto-sizing columns.
+\usepackage{makecell}         % Allows line breaks within table cells.
+\usepackage[labelfont=bf]{caption} % Customizes float captions (e.g., bold label).
+\usepackage{subcaption}       % For creating subfigures and subtables.
+\usepackage{wrapfig}          % Wraps text around figures.
+\usepackage{sidecap}          % Places captions on the side of floats.
+\usepackage{rotating}         % Rotates elements like figures and tables.
+\usepackage{float}            % Improves control over float placement (e.g., [H]).
+
+% --- ALGORITHMS ---
+% NOTE: You were loading two different algorithm packages.
+% Choose ONE of the following options to avoid conflicts.
+
+% Option 1: Use the 'algorithm2e' package.
+% \usepackage[linesnumbered,ruled,vlined]{algorithm2e}
+
+% Option 2: Use the 'algorithmicx' bundle (more customizable).
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\algrenewcommand\algorithmicrequire{\textbf{Input:}}
+\algrenewcommand\algorithmicensure{\textbf{Output:}}
+
+% --- PLOTTING (PGF/TikZ) ---
+% For creating graphics and plots programmatically.
 \usepackage{tikz}
-\usepackage{mathtools}
-\usepackage{pifont}
-\usepackage{scrextend}
-\usepackage{sidecap}
-\usepackage{graphicx}
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest} % Ensures use of the latest pgfplots features.
+\usepgfplotslibrary{colorbrewer, groupplots}
+\usetikzlibrary{patterns, matrix}
+\usepackage{pgfplotstable}  % For generating tables from data files.
 
+% --- CITATIONS & REFERENCES ---
+% NOTE: 'hyperref' should generally be loaded last, but 'cleveref' must come after it.
+\usepackage[square, numbers, sort]{natbib}  % For citation management.
+\usepackage{hyperref}                 % Creates hyperlinks within the document.
+\hypersetup{
+    colorlinks=false,                 % false: black links; true: colored links
+    linkcolor=black,
+    citecolor=black,
+    urlcolor=blue
+}
+\usepackage{cleveref}                 % For "intelligent" cross-referencing (\cref).
 
+\input{define}
 
 \begin{document}
 
@@ -130,24 +152,24 @@
 \bibliographystyle{acl_natbib}
 
 % Optionally: add appendices
-\newpage
-\newcommand{\beginsupplement}{%
-    \setcounter{chapter}{0}
-    \renewcommand{\thechapter}{\Alph{chapter}}%
- }
+% \newpage
+% \newcommand{\beginsupplement}{%
+%     \setcounter{chapter}{0}
+%     \renewcommand{\thechapter}{\Alph{chapter}}%
+%  }
 
-\beginsupplement
-\chapter{Appendix One}
-\section{Appendix section 1}
-\begin{table}[]
-    \centering
-    \begin{tabular}{c|c}
-         &  \\
-         & 
-    \end{tabular}
-    \caption{Table in the Appendix}
-    \label{tab:my_label}
-\end{table}
+% \beginsupplement
+% \chapter{Appendix One}
+% \section{Appendix section 1}
+% \begin{table}[]
+%     \centering
+%     \begin{tabular}{c|c}
+%          &  \\
+%          & 
+%     \end{tabular}
+%     \caption{Table in the Appendix}
+%     \label{tab:my_label}
+% \end{table}
 
 \end{document}
 
