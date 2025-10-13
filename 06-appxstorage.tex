@@ -349,7 +349,7 @@ pressure using, e.g. LRU.
         \State \Return $value$
         \EndProcedure
     \end{algorithmic}
-    \caption{Pseudocode of Sketch's \textsc{Put} and \textsc{Get} functions using atomic operations.}
+    \caption[Pseudocode of Sketch's \textsc{Put} and \textsc{Get}]{Pseudocode of Sketch's \textsc{Put} and \textsc{Get} functions using atomic operations.}
     \label{alg:sketch-funcs}
     \label{alg:timestamps-func}
 \end{algorithm}
@@ -429,7 +429,7 @@ number of hash functions employed.
 
 
     \end{algorithmic}
-    \caption{Pseudocode of \sketchname Operations. The pseudocode assumes linearizability using locks.}
+    \caption[Pseudocode of \sketchname operations]{Pseudocode of \sketchname operations. The pseudocode assumes linearizability using locks.}
     \label{alg:operations}
 \end{algorithm}
 
@@ -629,7 +629,7 @@ MVTO's case).
         \EndFor
         \EndProcedure
     \end{algorithmic}
-    \caption{TicToc integrated with \sketchname. Each transaction $T$
+    \caption[TicToc integrated with \sketchname]{TicToc integrated with \sketchname. Each transaction $T$
         maintains a read set $R$ and a write set $W$. TicToc buffers write
         values in the write set $W$ until commit time.}
     \label{alg:tictoc}
@@ -727,7 +727,7 @@ those outlined in \Cref{alg:tictoc:unlock} and
         \EndFor
         \EndProcedure
     \end{algorithmic}
-    \caption{STO integrated with \sketchname. Each transaction $T$
+    \caption[STO integrated with \sketchname]{STO integrated with \sketchname. Each transaction $T$
         maintains a read set $R$ and a write set $W$.}
     \label{alg:sto}
 \end{algorithm}
@@ -1069,7 +1069,7 @@ how they manage timestamps for the much larger set of inactive keys:
             \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contended YCSB (zipf=0.6)};
         \end{tikzpicture}
     }
-    \caption{YCSB small-transaction workloads results with 120 processing threads. In write-intensive workloads, each transaction performs 8 reads and 8 writes. In read-intensive workloads, each transaction performs 15 reads and 1 write. Note that, in the medium-contended workload, several schemes have abort rates very close to 0.}
+    \caption[YCSB small-transaction workloads results]{YCSB small-transaction workloads results with 120 processing threads. In write-intensive workloads, each transaction performs 8 reads and 8 writes. In read-intensive workloads, each transaction performs 15 reads and 1 write. Note that, in the medium-contended workload, several schemes have abort rates very close to 0.}
     \label{fig:ycsb}
 \end{figure}
 
@@ -1247,7 +1247,7 @@ We can draw several other conclusions from these results.
             \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contended (zipf=0.6)};
         \end{tikzpicture}
     }
-    \caption{YCSB mixed-transaction workloads results with 120 processing threads. 80\% of transactions perform 2 reads and 2 writes, and 20\% of transactions perform 28 reads. Note that, in the medium-contended workload, several schemes have abort rates very close to 0.}
+    \caption[YCSB mixed-transaction workloads results]{YCSB mixed-transaction workloads results with 120 processing threads. 80\% of transactions perform 2 reads and 2 writes, and 20\% of transactions perform 28 reads. Note that, in the medium-contended workload, several schemes have abort rates very close to 0.}
     \label{fig:ycsb:mixed}
 \end{figure}
 
@@ -1323,7 +1323,7 @@ unnecessary aborts.
             \node[right=4cm] at (c |- current bounding box.east) {\ref{grouplegend}};
         \end{tikzpicture}
     }
-    \caption{YCSB long-transaction workloads results with 120 processing threads. 5\% of transactions perform 1000 reads and the rest of transactions perform 8 writes and 8 reads. The distribution is Zipfian with 0.9.}
+    \caption[YCSB long-transaction workloads results]{YCSB long-transaction workloads results with 120 processing threads. 5\% of transactions perform 1000 reads and the rest of transactions perform 8 writes and 8 reads. The distribution is Zipfian with 0.9.}
     \label{fig:ycsb:long}
 \end{figure}
 
@@ -1373,7 +1373,7 @@ ones.
             \node[right=4cm] at (c |- current bounding box.east) {\ref{grouplegend}};
         \end{tikzpicture}
     }
-    \caption{YCSB read-intensive small-transaction workloads for TicToc Disk and \psketchname with varying SplinterDB Cache Size.}
+    \caption[TicToc Disk and \psketchname with varying SplinterDB Cache Size]{YCSB read-intensive small-transaction workloads for TicToc Disk and \psketchname with varying SplinterDB Cache Size.}
     \label{fig:ycsb:spl_cache}
 \end{figure}
 
@@ -1460,7 +1460,7 @@ each active key, for a total average memory usage of 160KiB.
             \node[right=4cm] at (c |- current bounding box.east) {\ref{grouplegend}};
         \end{tikzpicture}
     }
-    \caption{YCSB read-intensive small-transaction workloads for TicToc Disk-Cache compared to \psketchname with 32KiB of sketch size (Dashed line).}
+    \caption[TicToc Disk-Cache and \psketchname with 32KiB of sketch size]{YCSB read-intensive small-transaction workloads for TicToc Disk-Cache compared to \psketchname with 32KiB of sketch size (Dashed line).}
     \label{fig:ycsb:disk_cache}
 \end{figure}
 
@@ -1588,7 +1588,7 @@ requires I/O to access timestamps, while \psketchname does not.
             \node[above] at (c |- current bounding box.north) {\ref{grouplegend}};
         \end{tikzpicture}
     }
-    \caption{TPC-C results with 120 processing threads (More warehouses means less contention).}
+    \caption[TPC-C results]{TPC-C results with 120 processing threads (More warehouses means less contention).}
     \label{fig:tpcc}
 \end{figure*}
 
@@ -1829,7 +1829,7 @@ worse than the \fsketchname variants.
             \node[above] at (c |- current bounding box.north) {\ref{grouplegend}};
         \end{tikzpicture}
     }
-    \caption{The goodput of TicToc, STO, and MVTO for high-contended YCSB
+    \caption[Factor-analysis of the sketch size]{The goodput of TicToc, STO, and MVTO for high-contended YCSB
         workloads with varying sketch sizes. We configure workloads by operations
         proportion (Read-intensive vs. Write-intensive), the database size (containing
         673M vs. 67.3M keys), and the concurrency level (120 vs 16 threads). The dashed
