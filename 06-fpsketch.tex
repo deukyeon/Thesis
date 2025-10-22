@@ -1,0 +1,1674 @@
+
+This chapter introduces the concept of \emph{approximate timestamp storage} for
+enabling efficient timestamp-based concurrency control (CC) mechanisms in modern
+on-disk key-value stores. Exact timestamp storage systems are costly to maintain
+at large scale, especially when data does not fit entirely in main memory. We
+detail the key properties that an approximate timestamp storage system must
+possess to preserve correctness—specifically serializability—for three common CC
+protocols: STO, MVTO, and TicToc. We further describe the design and
+implementation of \sketchname, a novel approximate timestamp storage approach.
+Through careful analysis, we demonstrate that the overapproximation guarantees
+provided by \sketchname are sufficient for correctness, while significantly
+improving efficiency and scalability. Our approach unlocks new possibilities for
+optimizing disk-based storage systems without sacrificing correctness guarantees
+required by transactional workloads.
+
+
+
+\section{Approximate Timestamp Storage}
+\label{sec:requirements}
+
+While timestamp-based CC mechanisms assume the gurantees of a \emph{map} for
+storing their read and write timestamps, where a \emph{get} returns the latest
+\emph{put}, here we show that for STO, MVTO, and TicToc such strong guarantees
+are not necessary to ensure serializability. Specifically, we show that an
+\emph{approximate timestamp storage} system with the following two properties
+allows all three CC mechanisms to function correctly without any algorithmic
+changes.
+
+\begin{property}
+    The approximate timestamp storage system can return an
+    \emph{overapproximated} value for the timestamps it stores, only if there is
+    no on-going transaction that has previously accessed the respective
+    timestamps.
+    \label{property_one}
+\end{property}
+
+
+\begin{property}
+    When storing pairs of timestamps (read and write timestamps), if the CC
+    mechanism stores only pairs for which their write timestamp is not larger
+    than the read timestamp, then the approximate timestamp storage ensures
+    that, for every pair of (overapproximated) timestamps it returns, the write
+    timestamp is not larger than the read timestamp.
+    \label{property_two}
+\end{property}
+
+STO assigns a serialization time $\tau$ to each transaction when the transaction
+begins (see \Cref{alg:sto} for reference).  STO aborts a transaction if $\tau <
+t_k$, where $t_k$ is the timestamp of a key $k$ that is being accessed.
+Intuitively, since the comparison is always checking that $\tau$ is
+\emph{smaller} than one of the key's timestamps, overapproximating key
+timestamps can only cause transactions to abort. We make this more formal with a
+simulation argument.  Suppose STO with approximate timestamp storage processes
+transactions $T_1, \ldots, T_n$.  Consider STO with exact timestamp storage
+processing the same set of transactions with the same ordering of their
+operations.  Suppose that STO with exact timestamps has the additional property
+that it aborts any transaction that STO with approximate timestamp storage
+aborts.  This version of STO still guarantees serializability.  So, if we can
+show that it would commit all the transactions that approximate STO would
+commit, then this would mean that approximate STO is also serializable.  STO
+only ever does \emph{put($k, \tau$)}, i.e. the only timestamps that it stores in
+the timestamp storage engine are the timestamps assigned to transactions.  Thus
+the sequence of \emph{put} operations performed by approximate and exact STO
+will be identical. Hence every \emph{get} performed in approximate STO will
+return a value at least as large as the one returned in exact STO
+(\Cref{property_one}).  This implies that every timestamp check that causes an
+abort in exact STO will also cause an abort in approximate STO.  Hence
+approximate STO is serializable.
+
+For MVTO's correctness, as long as timestamp overapproximation does not change
+the original timestamp ordering of the versions for any record, the same
+argumentation as for STO applies.
+
+For TicToc, a simulation argument does not appear to be feasible, but the
+original TicToc proof~\citep{yu2016tictoc} continues to work, even for
+approximate timestamp storage.  This is because the proof reasons almost
+entirely about timestamp inequalities across physical time, and approximate
+timestamp storage will preserve those inequalities. We only need the following
+lemma for approximate timestamp storage in order to make the original TicToc
+proof go through:
+\begin{lemma}
+    Each timestamp increases monotonically in physical time in TicToc
+    with approximate timestamp storage.  Furthermore, every write to a key $k$
+    causes $k$'s write timestamp to increase.
+\end{lemma}
+\begin{proof}
+    We establish the second fact first.  Consider a committing transaction that
+    writes to $k$.  TicToc guarantees that, when the transaction performs
+    \emph{put}$(k.wts, \tau)$ during its commit phase, $\tau$ is larger than the
+    read timestamp returned by a previous \emph{get}$(k.rts)$ performed by the
+    same transaction.  By \Cref{property_two}, $k.wts \leq k.rts$ at the time of
+    the \emph{get} and, since the transaction references $k$ for the entire
+    duration between the \emph{get} and \emph{put}, the approximate timestamp
+    storage cannot spontaneously increase $k.wts$ during that interval.
+    Furthermore, the transaction holds a lock on $k$ the entire time between the
+    \emph{get} and the \emph{put}, so no other transaction could have performed
+    a \emph{put} on $k.wts$.  Hence $k.wts$ cannot change between the
+    transaction's \emph{get} and its \emph{put}, ensuring that the \emph{put}
+    increases $k.wts$.
+
+    The above argument also shows that, when a transaction performs
+    \emph{put}$(k.rts,\tau)$ in its commit phase, it does not decrease $k.rts$.
+
+    A transaction that reads $k$ may also update $k.rts$ during its validation
+    phase, but this trivially does not decrease $k.rts$ because the transaction
+    does \emph{put}$(k.rts, \max(\tau,$\emph{get}$(k.rts)))$ in an atomic
+    section.
+
+    Thus \emph{put} operations can never decrease a key's timestamps. The only
+    other way a timestamp can change is through approximation, which is
+    guaranteed not to decrease a timestamp (\Cref{property_one}). Thus
+    timestamps increase monotonically over physical time.
+\end{proof}
+
+The two facts established in the above lemma are sufficient to enable TicToc's
+original proof of serializability to go through.
+
+In the next section, we design an approximate timestamp storage data structure
+that meets the above requirements.
+
+
+
+
+\section{\sketchname}
+\label{sec:design}
+
+\begin{wrapfigure}{r}{0.4\textwidth}
+    \centering
+    \includegraphics[width=.4\textwidth]{FPSketch.png}
+    \caption[Overview of \sketchname]{\sketchname consists of the foveated region (hash table) storing accurate timestamps for active keys, peripheral region (sketch) for approximated timestamps, and the eviction mechanism transferring data between them.}
+    \label{fig:FPSketch}
+\end{wrapfigure}
+
+In this section, we describe \sketchname, an approximate timestamp storage
+structure that meets the requirements identified in \Cref{sec:requirements}.
+
+As shown in \Cref{fig:FPSketch}, \sketchname consists of two regions: a
+``foveated'' region providing accurate timestamps and a lossy ``peripheral''
+region that maintains overapproximated timestamps. \Sketchname is a hybrid data
+structure comprising both a hash table for the foveated region and a sketch for
+the peripheral region. Additionally, the \sketchname uses an \emph{eviction
+mechanism} to move timestamps from the foveated region to the peripheral one.
+
+\paragraph{Hash table:} The hash table stores timestamps of keys that are
+currently being accessed, ensuring that \sketchname does not spontaneously
+increase the timestamps of these keys. Each record in the hash table has a
+reference count, and each transaction increments the reference count the first
+time it accesses a record and decrements it upon commit/abort. Only keys for
+which the reference count reaches zero may be evicted from the hash table to the
+sketch. Depending on the eviction mechanism chosen, these keys may either be
+evicted immediately or kept in the hash table until evicted due to space
+pressure using, e.g. LRU.
+
+\begin{algorithm}[t]
+    \small
+    \begin{algorithmic}
+        \Struct{Sketch}
+        \DeclareVar{int}{rows, cols}
+        \DeclareVar{value}{table[rows][cols]}
+        \Comment{\textbf{value} must support atomic ops.}
+        \DeclareVar{uint64}{seeds[rows]}
+        \EndStruct
+    \end{algorithmic}
+
+    \begin{algorithmic}[1]
+        \Procedure{\timestampmax}{{\textsc{timestamps $t_1$}}, {\textsc{timestamps $t_2$}}}
+        \Assign{$(\wts{v}, \rts{v})$}{$(MAX(\wts{t_1}, \wts{t_2}), MAX(\rts{t_1}, \rts{t_2}))$}
+        \State \Return $v$
+        \EndProcedure
+        \Procedure{\timestampmin}{{\textsc{timestamps $t_1$}}, {\textsc{timestamps $t_2$}}}
+        \Assign{$(\wts{v}, \rts{v})$}{$(MIN(\wts{t_1}, \wts{t_2}), MIN(\rts{t_1}, \rts{t_2}))$}
+        \State \Return $v$
+        \EndProcedure
+
+        \Procedure{Put}{key $k$, value $v$}
+        \For{$row = 0$ to $rows-1$}
+        \Assign{$col$}{\hash{$k$}{$seeds[row]$} $\mod cols$}
+        \Assign{$current\_value$}{\atomicload{$\&table[row][col]$}}
+        \Assign{$is\_success$}{false}
+        \While{!$is\_success$}
+        \Assign{$new\_value$}{\timestampmaxfunc{$current\_value$}{$v$}} \label{alg:sketch-funcs:timestampmax}
+        \Assign{$is\_success$}{\atomiccas{$\&table[row][col]$}{$\&current\_value$}{$new\_value$}}
+        \EndWhile
+        \EndFor
+        \EndProcedure
+
+        \Procedure{Get}{key $k$}
+        \Assign{$col$}{\hash{$k$}{$seeds[0]$} $\mod cols$}
+        \Assign{$value$}{\atomicload{$\&table[0][col]$}}
+        \For{$row = 1$ to $rows-1$}
+        \Assign{$col$}{\hash{$k$}{$seeds[row]$} $\mod cols$}
+        \Assign{$current\_value$}{\atomicload{$\&table[row][col]$}}
+        \Assign{$value$}{\timestampminfunc{$current\_value$}{$value$}} \label{alg:sketch-funcs:timestampmin}
+        \EndFor
+        \State \Return $value$
+        \EndProcedure
+    \end{algorithmic}
+    \caption[Pseudocode of Sketch's \textsc{Put} and \textsc{Get}]{Pseudocode of Sketch's \textsc{Put} and \textsc{Get} functions using atomic operations.}
+    \label{alg:sketch-funcs}
+    \label{alg:timestamps-func}
+\end{algorithm}
+
+\paragraph{Sketch:} Timestamps evicted from the hash table are not discarded;
+instead, they are stored in the sketch. \Cref{alg:sketch-funcs} provides
+pseudocode for the \textsc{Put} and \textsc{Get} functions of the sketch,
+utilizing atomic operations. The core logic is analogous to the count-min
+sketch, except it takes $\max$ instead of incrementing during \textsc{Put}
+operations, which guarantees \Cref{property_one}. For STO, MVTO, and TicToc,
+timestamps are ordered pairs $(wts, rts)$ of write and read timestamps,
+respectively.  The sketch takes field-wise $\max$ and $\min$, as shown in
+\Cref{alg:timestamps-func}. Note that field-wise $\max$ and $\min$ preserve that
+$wts\leq rts$, so our sketch preserves \Cref{property_two}.
+
+When considering the memory limitations for both the hash table and the sketch
+within the \sketchname framework, it's important to note that the hash table's
+memory usage is directly tied to the quantity of keys currently accessed in
+parallel. Conversely, the size of the sketch is predetermined and remains
+constant based on the configured number of rows and columns, with the number of
+rows aligning with the number of hash functions employed.
+
+\subsection{\sketchname Operations}
+
+
+\begin{algorithm}[t]
+    \small
+    \begin{algorithmic}
+        \Struct{\sketchname{}}
+        \DeclareVar{HashTable}{hashtable}
+        \DeclareVar{Sketch}{sketch}
+        \EndStruct
+    \end{algorithmic}
+
+    \begin{algorithmic}[1]
+        \Procedure{IncRef}{key $k$}
+        \Assign{$e$}{\hashtableget{$k$}}
+        \If{$e = NULL$}
+        \Assign{$ts$}{\sketchget{$k$}}
+        \State \hashtableput{$k$}{$ts$}
+        \Comment Initialize $refcount = 1$
+        \State \Call{Evict}{\null}
+        \Else
+        \State{$e.refcount++$}
+        \EndIf
+        \EndProcedure
+
+
+        \Procedure{DecRef}{key $k$}
+        \Assign{$e$}{\hashtableget{$k$}}
+        \Comment{$e$ cannot be NULL}
+        \State{$e.refcount--$}
+        \If{$e.refcount = 0$}
+        \State \Call{Evict}{\null}
+        \EndIf
+        \EndProcedure
+
+        \Procedure{Get}{key $k$}
+        \State \Return \hashtableget{$k$}.ts
+        \EndProcedure
+
+        \Procedure{Put}{key $k$, timestamp $ts$}
+        \Assign{\hashtableget{$k$}$.ts$}{$ts$}
+        \EndProcedure
+
+        \Procedure{Evict}{\null}
+        \Assign{$E$}{\{$item$ in \textit{hashtable} | $item.val.refcount = 0$\}}
+        \Comment Only choose to evict from the set of keys that are not in-use
+        \ForAll{$item$ in \textsc{toEvictPolicy}($E$)}
+        \State \sketchput{$item.k$}{$item.val.ts$}
+        \State \hashtableremove{$item.k$}
+        \EndFor
+        \EndProcedure
+
+
+    \end{algorithmic}
+    \caption[Pseudocode of \sketchname operations]{Pseudocode of \sketchname operations. The pseudocode assumes linearizability using locks.}
+    \label{alg:operations}
+\end{algorithm}
+
+\sketchname provides four operations, as shown in \Cref{alg:operations}:
+\textsc{Get}, \text{Put}, \textsc{IncRef}, and \textsc{DecRef}. \textsc{IncRef}
+and \textsc{DecRef} increment and decrement the refcounts on keys in the
+\sketchname, and may need to transfer timestamps between the hashtable and the
+sketch. Transactions are required to call $\textsc{IncRef}(k)$ before their
+first access to a key $k$, through a \textsc{Get} or \textsc{Put} operation, and
+should not access the key after calling $\textsc{DecRef}(k)$. Although we omit
+locking from the pseudocode, all operations ensure linearizability for each item
+in the hash table through the use of per-bucket locks.
+
+\textbf{\textsc{IncRef}}  allocates a hashtable slot for $k$ if one does not
+already exist, initializes its timestamp from the sketch, and sets its refcount
+to 1.  Otherwise it just increments the refcount of the existing entry.
+\textsc{IncRef} executes atomically via a lock on the hashtable bucket.
+
+\textbf{\textsc{DecRef}} looks up the key in the hashtable, which is
+guaranteed to exist due to the prior \textsc{IncRef}, and it decrements the
+entry's refcount. Again, this sequence of operations is executed atomically by
+using per-bucket locks on the hashtable. If the refcount reached 0, it calls the
+eviction method that implements the chosen eviction mechanism. The eviction
+mechanism may only evict keys for which refcount is 0, and it implements an
+eviction policy, \textsc{toEvictPolicy}, which selects which of these keys to
+evict.
+
+\textbf{\textsc{Get} and \textsc{Put}} just return or update the timestamps
+in the hashtable entry, which is guaranteed to exist due to the prior call to
+\textsc{IncRef}.
+
+
+
+\subsection{\sketchname Variants}
+\label{sec:design:variants}
+
+\sketchname allows customizable sizes for both its regions; this customization
+exposes the trade-off between timestamp accuracy and space. Increasing the size
+of either of these regions also increases the overall accuracy of the
+timestamps, but the space consumption for the accuracy boost varies across the
+two regions. In this chapter we explore two \sketchname variants: \Fsketchname,
+which favors a large foveated region, and \Psketchname which, in contrast,
+favors a large peripheral region. More precisely, given a fixed size space, $S$,
+that can be used to store the timestamps of the keys that are not in-use,
+\Fsketchname allocates most of $S$ for the foveated region, while \Psketchname
+allocates most of $S$ for the peripheral region, as we detail further. For
+\Psketchname, we provide intution on how to size the sketch (in terms of the
+number of rows and columns) in the next section.
+
+\textbf{\Fsketchname} is a variant of \sketchname that uses the smallest
+possible sketch, a sketch of size one, and allocates all the remaining available
+space to the hashtable. This variant uses the CLOCK eviction mechanism to evict
+timestamps from the hashtable when it runs out of space to store timestamps of
+keys that are not in-use.
+
+\textbf{\Psketchname} is a variant of \sketchname that uses the smallest
+possible hashtable by implementing an aggressive eviction policy that evicts a
+key from the hashtable as soon as its refcount reaches 0 (i.e., is no longer
+in-use by any on-going transaction). All the available space is allocated to the
+sketch.
+
+\subsection{Sizing \sketchname}
+
+In this section, we give a simple heuristic argument that the size of the sketch
+should be proportional to $\Theta(CK)$ columns and $\Theta(\log CK)$ rows, where
+$C$ is the average number of concurrent transactions and $K$ is the average
+number of keys accessed by each transaction. Thus the total size of the sketch
+need be at most $O(CK \log CK)$.
+
+We argue that, if the sketch is large enough, then, during the entirety of some
+transaction $T$'s execution, the sketch will not spontaneously increase the
+timestamps of any of the keys accessed by $T$.  Let $A_T$ be the set of keys
+accessed by \textit{any} transaction during $T$'s execution. Note that the
+average size of $A_T$ is around $CK$.  If the sketch has $CK$ columns then,
+within each row, a constant fraction of the keys will not collide with any other
+key in $A_T$.  Since there are $\Theta(\log CK)$ rows, with high probability
+every key is collision-free in at least one row. Thus the sketch will not make
+any new approximation errors on any of the keys in $A_T$ during $T$'s execution.
+
+So, most of the time, the system will behave as if it is using exact timestamp
+storage during a transaction $T$'s execution.  We just have to argue that
+approximation errors made before $T$ begins won't affect whether $T$ aborts.
+This is straightforward from examining each CC mechanism.  For example, STO
+compares timestamps of keys only with $T$'s timestamp, $\tau$.  All keys have
+timestamps less than $\tau$ before $T$ begins, so the only way $T$ can abort is
+if some other transaction updates a timestamp of a key accessed by $T$.  But
+then $T$ would have aborted in a system with exact timestamps, as well. Similar
+arguments can be made for TicToc and MVTO.
+
+Note this analysis is merely a heuristic rule of thumb.  It assumes that the
+transactions do not try to cause aborts. A malicious actor could attempt to
+discover colliding keys (by issuing transactions on different keys and seeing
+which ones abort) and then issue a sequence of transactions that it knows will
+all abort due to hash collisions in the sketch.  Second, it ignores the fact
+that, if a transaction aborts due to a timestamp approximation, that may allow
+another transaction to commit, which in turn may cause another transaction to
+abort, and so on.  So it is not strictly true that timestamp approximations
+cannot affect future transactions.  However, this effect is not likely to be
+significant.  Finally, it ignores variance in the sizes and concurrency of
+transactions, which may necessitate larger sketches, and it ignores skew in
+key-access patterns, which may allow much smaller sketches.
+
+
+As for the hashtable, recall that the hashtable needs to hold only active keys,
+and so it should be sized to hold roughly $\Theta(CK)$ keys, as well.  In
+practice, we would advise using a resizable hashtable and simply letting it grow
+as needed. Several state-of-the-art hashtables support concurrent operations
+while resizing~\cite{iceberg, dash, dlht}, so this need not cause any hiccups in
+throughput.
+
+\subsection{\sketchname Implementation}
+
+We implement the hash table of \sketchname on top of IcebergHT~\cite{iceberg}
+and the sketch from scratch. We modified IcebergHT to perform reference-count
+management and to support holding bucket locks across multiple operations. For
+the \Fsketchname variant that uses a sketch of size one, we use an optimized
+version \Cref{alg:sketch-funcs} which no longer needs to compute hashes.
+
+
+\section{Integration with the Existing CC Algorithms}
+\label{sec:integration}
+
+In this section, we describe how to integrate \sketchname into STO, MVTO, and
+TicToc. STO and MVTO differ substantially from TicToc in that TicToc verifies
+transactions post-execution in an optimistic manner, whereas STO and MVTO can
+abort transactions mid-execution. All three maintain read and write timestamps
+per key (per version in MVTO's case).
+
+\subsection{TicToc}
+
+\begin{algorithm}[t]
+    \small
+    \begin{algorithmic}[1]
+        \Procedure{Read}{database $D$, \sketchname $S$, transaction $T$, key $k$}
+        \Atomic
+        \If{$k\not\in T.R$}
+        \State $S$.\textsc{IncRef}($k$)
+        \EndIf
+        \Assign{$T.R[k]$}{$S$.\textsc{Get}($k$)}
+        \Assign{$T.R[k].data$}{$D$.\textsc{Read}($k$)}
+        \Comment{Read $k$'s value from disk}
+        \EndAtomic
+        \State \Return $T.R[k].data$
+        \EndProcedure
+        \Procedure{Validate}{transaction $T$}
+        \For{$k \in T.W$ in sorted order}
+        \State \lock $k$
+        \State $S$.\textsc{IncRef}($k$)
+        \EndFor
+        \Assign{$T$.\commitTime}{0}
+        \Comment{Compute our commit timestamp $T$.\commitTime}
+        \For{$k \in  T.W \cup T.R$}
+        \If{$k \in T.W$}
+        \Assign{$T$.\commitTime}{$\max(T.\commitTime, 1 + S.\textsc{Get}(k).rts)$}
+        \Else
+        \Assign{$T$.\commitTime}{$\max(T.\commitTime, T.R[k].wts)$}
+        \EndIf
+        \EndFor
+        \For{$k \in T.R$}
+        \Atomic
+        \If{$T.R[k].rts < T.\commitTime$}
+        \parIf{$T.R[k].wts \not= S.\textsc{Get}(k).wts \vee (S.\textsc{Get}(k).rts \leq T.\commitTime \wedge \locked(k) \wedge k \not\in T.W)$} \label{alg:tictoc:abort-test}
+        \State \abort \label{alg:tictoc:abort}
+        \parElse
+        \Assign{$curr$}{$S.\textsc{Get}(k)$}
+        \Assign{$curr.rts$}{$\max(T.\commitTime, curr.rts)$}
+        \State $S.\textsc{Put}(k, curr)$
+        \EndparIf
+        \EndIf
+        \EndAtomic
+        \EndFor
+        \EndProcedure
+        \Procedure{Commit}{database $D$, \sketchname $S$, transaction $T$}
+        \For{$k \in T.W$}
+        \State $D.\textsc{Write}(k, T.W[k].data)$
+        \Comment{Write $k$'s value to disk}
+        \State $S.\textsc{Put}(k, (T.\commitTime, T.\commitTime))$
+        \State $S.\textsc{DecRef}(k)$ \label{alg:tictoc:remove}
+        \State \unlock $k$ \label{alg:tictoc:unlock}
+        \EndFor
+        \For{$k\in T.R$}
+        \State $S.\textsc{DecRef}(k)$
+        \EndFor
+        \EndProcedure
+    \end{algorithmic}
+    \caption[TicToc integrated with \sketchname]{TicToc integrated with \sketchname. Each transaction $T$
+        maintains a read set $R$ and a write set $W$. TicToc buffers write
+        values in the write set $W$ until commit time.}
+    \label{alg:tictoc}
+\end{algorithm}
+
+\Cref{alg:tictoc} shows the pseudocode for TicToc with \sketchname. There are
+only two changes to the algorithm. First, timestamps are stored in the
+\sketchname instead of inline with the tuples, as in the original TicToc paper,
+so the syntax for accessing timestamps is different.  Second, we need to call
+\textsc{IncRef} and \textsc{DecRef} when a transaction first accesses a key and
+when it finishes.  Note that all the logic for dealing with timestamp
+approximation is encapsulated within the \sketchname code---TicToc is not aware
+of the approximations.
+
+Transactions increment a key's refcount the first time they access it, and
+decrement it only during commit (or as part of the abort procedure, which is not
+shown).  This ensures that the key's timestamps will not change spontaneously
+due to approximations in the timestamp storage structure during the
+transaction's execution. It then records the timestamps in the transaction's
+read set, which is structured as a map from keys to timestamps.
+
+The write set is a map from keys to data items.  When a transaction writes to a
+key, we just record the specified key-value pair in the transaction's write set.
+Note that a transaction doesn't need to check the timestamps of a key in its
+write set until validation time, as in the original TicToc. Although not shown
+explicitly, the full implementation checks the transaction's write set during
+reads so that a transaction sees its own writes.
+
+TicToc requires a mechanism to lock keys during transaction validation.
+Although this is abstracted in our pseudocode, in our implementation this is
+accomplished by having a lock bit in a key's entry in the timestamp hash table.
+
+When a transaction either commits or aborts, it is essential to unlock the write
+set and decrease the reference counts of the accessed keys. It's worth noting
+that we omit the code for finalizing transactions upon abort due to space
+constraints. However, the steps involved in unlocking and removing entries for
+transaction aborts are the same as those outlined in \Cref{alg:tictoc:unlock}
+and \Cref{alg:tictoc:remove}.
+
+\subsection{STO}
+
+\begin{algorithm}[t]
+    \small
+    \begin{algorithmic}[1]
+        \Procedure{Begin}{global timestamp $*c$, transaction $T$}
+        \Assign{$T$.\commitTime}{\atomicfetchadd{$c$}{1}} \EndProcedure
+
+        \Procedure{Read}{database $D$, \sketchname $S$, transaction $T$, key $k$}
+        \If{$k\not\in T.R$}
+        \State \textsc{ReadLock} $k$
+        \Assign{$T.R$}{$T.R\cup\{k\}$}
+        \State $S$.\textsc{IncRef}($k$)
+        \If{$T.\commitTime < S.\textsc{Get}(k).wts$} \label{alg:sto:abort1-check}
+        \State \abort \label{alg:sto:abort1}
+        \EndIf
+        \Atomic
+        \Assign{$curr$}{$S.\textsc{Get}(k)$}
+        \Assign{$curr.rts$}{$\max(T.\commitTime, curr.rts)$}
+        \State $S.\textsc{Put}(k, curr)$
+        \EndAtomic
+        \Assign{$T.R[k].data$}{$D$.\textsc{Read}($k$)}
+        \Comment{Read $k$'s value from disk}
+        \State \unlock $k$
+        \EndIf
+        \State \Return $T.R[k].data$
+
+        \EndProcedure
+        \Procedure{Write}{database $D$, \sketchname $S$, transaction $T$, key $k$, val $v$}
+        \If{$k\not\in T.W$}
+        \State \textsc{WriteLock} $k$
+        \State $S$.\textsc{IncRef}($k$)
+        \If{($T.\commitTime < S.\textsc{Get}(k).wts) \vee (T.\commitTime < S.\textsc{Get}(k).rts)$}
+        \State \abort \label{alg:sto:abort3}
+        \EndIf
+        \Assign{$curr$}{$S.\textsc{Get}(k)$}
+        \Assign{$curr.wts$}{$\max(T.\commitTime, curr.wts)$}
+        \State $S.\textsc{Put}(k, curr)$
+        \EndIf
+        \Assign{$T.W[k]$}{$v$}
+        \EndProcedure
+        \Procedure{Commit}{database $D$, \sketchname $S$, transaction $T$}
+        \For{$k \in T.R$}
+        \State $S.\textsc{DecRef}(k)$
+        \EndFor
+        \For{$k \in T.W$}
+        \State $D$.\textsc{Write}($k$, $T.W[k]$)
+        \Comment{Write $k$'s value to disk}
+        \State $S.\textsc{DecRef}(k)$
+        \State \unlock $k$
+        \EndFor
+        \EndProcedure
+    \end{algorithmic}
+    \caption[STO integrated with \sketchname]{STO integrated with \sketchname. Each transaction $T$
+        maintains a read set $R$ and a write set $W$.}
+    \label{alg:sto}
+\end{algorithm}
+
+\Cref{alg:sto} shows the pseudocode of STO with \sketchname. The
+changes are similar to those in TicToc.
+
+STO assigns each transaction a commit timestamp when it begins. Whenever a
+transaction reads or writes an entry in the database, STO locks that key, checks
+that the key's timestamps are compatible with the commit timestamp of the
+transaction, and then updates the key's timestamps. STO does not allow
+transactions to access uncommitted data. This can be achieved with read-write
+locks, as illustrated in \Cref{alg:sto}. We implemented these locks with ``dirty
+bits''\cite{wolf2015sto}. With dirty bits, readers do not block writers,
+enabling more concurrency than in 2PL. Dirty bits work as follows. When a writer
+updates a tuple, it sets the tuple's dirty bit to 1. This blocks subsequent
+readers and writers until the writing transaction commits or aborts.  Readers,
+however, use the dirty bit only as a latch to atomically read the tuple into a
+private buffer, and hence do not block subsequent writers (or, obviously,
+subsequent readers).
+
+As in our TicToc implementation, we store the reader-writer locks in the entries
+in the \sketchname. Although not shown explicitly, if a transaction writes a key
+after reading it, it needs to be able to atomically upgrade its reader lock to a
+a writer lock.  If upgrading is not possible, the transaction aborts.
+
+Note that STO needs to update the timestamps in the sketch only the first time a
+transaction accesses a key, since the timestamp updates performed by a
+transaction using STO are idempotent.  During a read, we need to read and write
+the timestamps in the sketch atomically, since other readers may also be
+updating the key's read timestamp. This isn't necessary for writes, since the
+transaction already holds an exclusive lock on the key.
+
+To commit, a transaction needs only to write its data back to the database,
+release all references to entries in the timestamp storage structure, and unlock
+all the keys.  Aborting, not shown, is similar.
+
+\subsection{MVTO}
+
+In a standard MVTO system, the database may maintain multiple versions of each
+key-value pair---a new version is created whenever a transaction commits a write
+to the respective key.  Each version has associated timestamps and, when a
+transaction first reads a key, it looks through the versions to find one whose
+timestamps make it visible to that transaction and uses that version.  If the
+transaction cannot find a compatible version (e.g. if the old versions have
+already been garbage collected) then it must abort.
+
+As we noted in \Cref{sec:requirements}, MVTO requires that the approximate
+timestamp storage system must maintain the relative timestamp ordering of the
+versions of a key-value-pair.  We satisfy this requirement by ensuring that our
+system approximates the timestamps of only the most recent version of any
+key-value pair.
+
+Specifically, our MVTO implementation works as follows.  When a key is inactive,
+we store the (approximate) timestamps of the most recent version of that key in
+\sketchname.  When the key becomes active, we copy the timestamps of the most
+recent version from \sketchname into the hashtable.  Whenever a new version of
+the key is created, we store the timestamps of the new version in the hashtable,
+as well.  Once the key becomes inactive, we move the timestamps of the most
+recent version back to \sketchname and discard the timestamps of all the older
+versions.
+
+Whenever a new version is created, it is assigned a monotonically increasing
+version number and stored in SplinterDB indexed as (key, version-number)
+$\rightarrow$ value.  Each entry in the hashtable also contains the version
+number so, once a transaction finds an entry with compatible timestamps in the
+hashtable, it learns the version number that it needs in order to look up that
+version of the key-value pair in SplinterDB using a point lookup.
+
+When a transaction accesses an inactive key, however, the sketch can tell the
+transaction only the timestamps of the most recent version, but not its version
+number.  Thus the transaction does not know what version number to use to look
+up the key in SplinterDB.  We considered two solutions to this problem.  The
+first was to have the transaction perform a predecessor query in SplinterDB,
+i.e. to query for the predecessor of (key, $\infty$).  However, predecessor
+queries in SplinterDB are slower than point queries because predecessor queries
+cannot use SplinterDB's maplets~\cite{ConwayFaJo23}.
+
+To avoid predecessor queries, we implemented the following optimization.
+Whenever a new version of a key-value pair is inserted into SplinterDB, we also
+insert the same key-value pair into SplinterDB with the special version number
+0, i.e. we maintain the invariant that the most recent version of a key is
+always stored as (key, 0).  This incurs two insertions into SplinterDB for each
+version, but enables queries of inactive keys to perform point queries instead
+of range queries.  Overall, we found this approach offered higher performance,
+so this is the scheme we use in all our benchmarks.
+
+
+\paragraph{Persistence and crash safety:} It is possible to handle crashes using
+standard techniques like write-ahead logging and checkpoints. Note that we do
+not need to persist the timestamps across crashes or shutdowns since there can
+be no serializability violations between transactions that execute before and
+after a crash or shutdown.
+
+
+
+\section{Evaluation}\label{sec:eval}
+
+We evaluate the effectiveness of \sketchname in scaling timestamp-based CC
+mechanisms to on-disk databases. There are five high-level take-aways from our
+experiments:
+\setlist{nolistsep}
+\begin{itemize}
+    \item \sketchname-based versions of STO, MVTO, and TicToc outperform
+          versions that keep timestamps on disk in all our experiments, often by
+          dramatic margins.  For example, \sketchname improves TicToc goodput by
+          up to 5.9x, STO by up to 1.8x, and MVTO by over 160x.
+    \item Similarly, \psketchname-based protocols can offer up to 2x greater
+          goodput than \fsketchname-based ones. Furthermore, TicToc and STO with
+          \psketchname are never substantially slower than the \fsketchname
+          variants.
+    \item The goodputs of TicToc and STO with \sketchname are close to an
+          idealized algorithm, which assumes we can fit all timestamp metadata
+          in RAM, across diverse workloads.
+    \item TicToc-\psketchname in particular outperforms 2PL and OCC across the
+          board.
+    \item \sketchname requires a tiny amount of memory -- 32KB in our
+          experiments with an 80GB database.
+\end{itemize}
+In summary, \sketchname offers essentially strictly improved performance with
+little to no downside for STO, MVTO, and TicToc across a wide range of
+benchmarks.
+
+
+\subsection{Experimental Setup}
+\label{sec:eval-setup}
+
+We run our experiments on a CloudLab~\cite{duplyakin2019cloudlab} Clemson r6525
+machine with two 32-core AMD 7543 at 2.8GHz, 256GB memory, and one 1.6TB PCIe
+v4.0 NVMe SSD.
+
+We use SplinterDB, a fast, scalable write-optimized key-value store, as the
+underlying storage system for the concurrency control mechanisms we consider in
+this evaluation. We configure SplinterDB to use the raw device I/O (with the
+DIRECT\_IO flag) to avoid the filesystem overhead. We size SplinterDB's internal
+cache to a percentage of each workload's database size, as we detail below.
+
+In all our experiments, we utilize 120 threads, which is the maximum supported
+by the version of SplinterDB used in this work. Each thread executes
+transactions in a closed loop. When a transaction aborts, it can be retried up
+to 5 times. The retry mechanism uses exponential backoff. We tuned the initial
+backoff interval for each scheme by initially setting it to be roughly twice the
+average uncontended transaction completion time, and then tuned it until the
+abort rate roughly matched that of the Memory variant.
+
+We measure Goodput in Kilo Transactions Per Second (KTPS) and also evaluate the
+abort rate. Goodput represents the number of successfully committed transactions
+per second. The abort rate is calculated as the ratio of the total number of
+aborts, which can be up to 6 per transaction (including the initial attempt and
+5 retries), to the total number of attempted transactions, which is the sum of
+all aborts and commits.
+
+
+\paragraph{Concurrency control mechanisms.} We implement and evaluate several CC
+mechanisms, including all three timestamp-based CCs described
+in~\Cref{sec:background:timestamp-based-cc} (STO, MVTO, and TicToc), and two
+classic CCs which are widely used in disk-based databases: two-phase locking
+(2PL) and Kung-Robinson Optimistic Concurrency Control (OCC). Unlike
+timestamp-based CCs, these two classic mechanisms do not require maintaining
+per-record metadata, thus avoiding disk I/O overhead for metadata access. For
+2PL, we employ a no-wait policy after evaluating multiple deadlock prevention
+mechanisms (including wound-wait and wound-die). We selected no-wait due to its
+generally good performance in our experiments, which aligns with findings from
+previous works~\cite{DBLP:conf/sigmod/RenFA16,DBLP:conf/usenix/TangE18}.
+
+We implement five variants of STO, MVTO, and TicToc. These variants are
+distinguished by their methods for storing and accessing per-record timestamps,
+which range from relying entirely on disk to using fully in-memory solutions.
+
+First, we establish the performance boundaries with two baseline variants:
+\begin{itemize}
+    \item \emph{Disk}: This is the simplest approach. Timestamps are stored on
+          disk as part of each record, requiring an I/O operation for every
+          timestamp access.
+
+    \item \emph{Memory}: This represents a theoretical upper bound on
+          performance. It stores timestamps for all keys in a single, large
+          in-memory hash table. While fast, this approach is generally
+          impractical due to its prohibitive memory requirements.
+\end{itemize}
+
+The remaining three variants maintain an in-memory hash table to store the keys
+of currently active transactions. They differ primarily in how they manage
+timestamps for the much larger set of inactive keys:
+\begin{itemize}
+    \item \emph{Disk-Cache}: This variant enhances the Disk approach by adding a
+          cache for inactive keys, inspired by PostgreSQL's SLRU
+          cache~\cite{postgresql-slru}, buffering on-disk metadata. It uses the
+          same active-key hash table as the sketch variants. For inactive keys,
+          it employs a 32 KiB in-memory cache with a CLOCK eviction policy to
+          buffer timestamps read from disk. This cache operates alongside
+          SplinterDB's standard page caching. We also explore the impact of
+          larger caches in \Cref{sec:ycsb}.
+
+    \item \emph{\fsketchname}: As one variant of \sketchname, described in
+          \Cref{sec:design:variants}, it supplements the active-key hash table
+          with an additional 32 KiB of memory dedicated to storing timestamps
+          for inactive keys. Also, a CLOCK eviction policy is employed.
+
+    \item \emph{\psketchname}: The other variant of \sketchname also uses the
+          active-key hash table but employs a 32 KiB probabilistic sketch for
+          managing inactive key timestamps. The sketch is configured with 2 rows
+          to balance space efficiency and error rates~\cite{flexswitch}, with
+          the number of columns set to fit the memory budget.
+\end{itemize}
+
+\begin{figure}[!t]
+    \centering
+    \resizebox{\textwidth}{!}{%
+        \begin{tikzpicture}
+            \begin{groupplot}[group style={group size=4 by 2,
+                            /pgf/bar width=2.7pt},
+                    height = 3.6cm,
+                    width = 4.5cm,
+                    ybar= 2*\pgflinewidth,
+                    xtick={-1, 0.425, 1.7125, 3.1},
+                    xticklabels={2PL/OCC, STO, MVTO, TicToc},
+                    ymajorgrids=true,
+                    enlarge x limits = 0.2,
+                    legend columns=-1,
+                    legend entries={{\ssmall Memory (Idealized)}, {\ssmall Disk}, {\ssmall Disk-Cache}, {\ssmall \fsketchname},  {\ssmall \psketchname}},
+                    area legend,
+                    legend to name=grouplegend,
+                ]
+
+                % graph [1,1] high
+                \nextgroupplot[title={Read-intensive},YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 17.477367)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 16.476967)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 38.878867) (1.7125, 38.669267) (3, 140.330333)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 30.2847) (1.7125, 0.507507) (3, 49.263467)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 21.507167) (1.7125, 19.000767) (3, 43.443867)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 34.837367) (1.7125, 33.990467) (3, 63.942467)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 38.5077) (1.7125, 36.797133) (3, 115.33)};
+                \coordinate (top) at (rel axis cs:0,1);% coordinate at top of the first plot
+
+                % graph [1,3] high
+                \nextgroupplot[title={Write-intensive}, YCSBThroughputBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 7.801877)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 16.502733)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 11.258033) (1.7125, 8.60338) (3, 59.562333)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 6.549243) (1.7125, 0.224855) (3, 8.097707)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 5.843353) (1.7125, 4.63059) (3, 7.08267)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 11.186667) (1.7125, 7.12615) (3, 35.785433)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 11.6077) (1.7125, 8.470803) (3, 47.927533)};
+
+                % graph [1,1] medium
+                \nextgroupplot[title={Read-intensive},YCSBThroughputBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 44.415733)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 12.110933)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 48.277933) (1.7125, 45.4553) (3, 48.216233)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 41.467833) (1.7125, 0.345895) (3, 29.168467)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 24.1369) (1.7125, 20.6195) (3, 23.9132)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 33.744567) (1.7125, 30.869233) (3, 47.0563)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 46.990067) (1.7125, 39.9891) (3, 45.608067)};
+
+
+                % graph [1,3] medium
+                \nextgroupplot[title={Write-intensive},YCSBThroughputBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 98.0184)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 9.95364)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 99.339033) (1.7125, 72.628067) (3, 100.82)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 47.448567) (1.7125, 0.329319) (3, 38.399333)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 27.401467) (1.7125, 18.576433) (3, 27.043833)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 59.674867) (1.7125, 39.79) (3, 89.918167)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 90.8817) (1.7125, 51.949233) (3, 101.462)};
+                \coordinate (bot) at (rel axis cs:1,0);% coordinate at bottom of the last plot
+
+                % graph [1,2] read intensive
+                \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.305736)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.473590)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.313093) (1.7125, 0.296428) (3, 0.129434)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.304782) (1.7125, 0.291449) (3, 0.136846)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.337739) (1.7125, 0.292974) (3, 0.136776)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.319974) (1.7125, 0.309124) (3, 0.233345)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.311677) (1.7125, 0.305936) (3, 0.146853)};
+
+                % graph [1,4] write intensive
+                \nextgroupplot[AbortRateBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.571029)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.498173)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.516916) (1.7125, 0.544745) (3, 0.281149)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.525495) (1.7125, 0.539769) (3, 0.274822)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.544414) (1.7125, 0.539943) (3, 0.292887)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.514934) (1.7125, 0.559506) (3, 0.331628)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.507419) (1.7125, 0.546395) (3, 0.295353)};
+
+                % graph [1,2]
+                \nextgroupplot[AbortRateBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.000319)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.000167)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.000093) (1.7125, 0.000092) (3, 0.000029)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.000085) (1.7125, 0.000062) (3, 0.000036)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.000087) (1.7125, 0.000093) (3, 0.00003)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.361786) (1.7125, 0.375866) (3, 0.000106)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.002301) (1.7125, 0.000815) (3, 0.000087)};
+
+                % graph [1,4]
+                \nextgroupplot[AbortRateBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.002547)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.001037)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.000513) (1.7125, 0.000435) (3, 0.000213)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.00141) (1.7125, 0.000536) (3, 0.00031)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.001389) (1.7125, 0.000541) (3, 0.000348)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.303408) (1.7125, 0.399625) (3, 0.00059)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.113349) (1.7125, 0.048471) (3, 0.00048)};
+
+            \end{groupplot}
+            \coordinate (c) at ($(top)!.5!(bot)$);
+            \coordinate (cc1) at ($(top)!.25!(bot)$);
+            \coordinate (cc2) at ($(top)!.75!(bot)$);
+
+            \node[above] at (c |- current bounding box.north) {\ref{grouplegend}};
+            \node[below] at (cc1 |- current bounding box.south) {(a) High-contended YCSB (zipf=0.99)};
+            \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contended YCSB (zipf=0.6)};
+        \end{tikzpicture}
+    }
+    \caption[YCSB small-transaction workloads results]{YCSB small-transaction workloads results with 120 processing threads. In write-intensive workloads, each transaction performs 8 reads and 8 writes. In read-intensive workloads, each transaction performs 15 reads and 1 write. Note that, in the medium-contended workload, several schemes have abort rates very close to 0.}
+    \label{fig:ycsb}
+\end{figure}
+
+
+\paragraph{Workloads.} We use two benchmarks to evaluate the performance of the
+CCs we implement: (1) YCSB~\cite{ycsb}, which models large-scale online
+services, and (2) TPC-C~\cite{tpcc}, the industry standard for evaluating OLTP
+systems.
+
+
+In the YCSB workloads, we first load a dataset of 673 million key-value pairs,
+with 24-byte keys and 100-byte values. This loading phase is performed before
+every run, followed by the execution phase. To evaluate \sketchname's across
+diverse scenarios, we execute seven YCSB workloads: four ``small'' transaction
+workloads, two ``mixed'' transaction workloads, and one ``large'' transaction
+workload.  Each of the small workloads is either \emph{read-intensive} or
+\emph{write-intensive}. In write-intensive workloads, transactions perform 8
+reads and 8 writes. In read-intensive workloads, transactions perform 15 reads
+and 1 write. The keys used in these transactions are generated based on a
+Zipfian distribution. Each of the workloads is either \emph{high-contention} or
+\emph{medium-contention}.  For the high-contention workloads the Zipfian
+distribution uses \emph{theta}=0.99 (10\% of the pairs are accessed by ~80\% of
+the operations). For the medium-contention workloads, \emph{theta}=0.6 (10\% of
+the pairs are accessed by ~40\% of all the operations). The ``mixed''
+transaction workloads consist of a mix of small transactions (reading and
+writing 2 keys each) and medium-sized transactions, which read 28 keys each. For
+these workloads, the Zipfian \emph{theta} values of 0.9 and 0.6 are used for
+high- and medium-contention, respectively. Finally, we run a high-contention
+(Zipfian 0.9) ``large'' transaction workload, where 5\% of the transactions read
+1000 keys, and the remaining transactions each read and write 8 keys.
+SplinterDB's internal cache is 6GiB, which is less than 10\% of the database
+size. We run YCSB experiments over a duration of 240 seconds. We repeat each run
+three times and report average numbers.
+
+As in many previous works, we evaluated TPC-C workloads that comprise only two
+of the five transaction types in TPC-C, namely \texttt{Payment} and
+\texttt{NewOrder}, with each type making up 50\% of the workload.  These two
+transaction types constitute 88\% of the default TPC-C mix and are the most
+interesting for our evaluation. We ran the TPC-C workloads for various number of
+warehouses, 4, 8, 16, and 32, which dictate the initial database size and the
+contention level. SplinterDB's internal cache was configured to 256MB. The TPC-C
+experiments are run for 120 seconds and repeated three times to minimize noise
+caused by random variation.
+
+\subsection{YCSB Results}
+\label{sec:ycsb}
+
+
+\paragraph{Small-transaction workloads.}
+\Cref{fig:ycsb} shows the goodput and abort rates for all our timestamp-based CC
+mechanisms on our four small-transaction YCSB workloads.
+
+One important result from \Cref{fig:ycsb} is that in all scenarios, integrating
+\sketchname with the timestamp-based CCs enables them to substantially
+outperform their ``Disk'' and ``Disk-Cache'' counterparts. Except with MVTO,
+which we discuss below, Disk-Cache is slightly slower than Disk due to the
+overhead of managing the extra cache. We provide a deeper dive on how cache size
+affects Disk-Cache's performance in another experiment described below. The STO
+and MVTO variants match their ``Memory'' counterparts. TicToc experiences
+performance penalties from aborts because validation occurs after optimistically
+executing all operations, requiring them to be re-executed. This effect is
+particularly pronounced for read operations. Nevertheless, TicToc with
+\sketchname still achieve the best performance across our workloads. The
+\psketchname-based protocols also match or outperform their \fsketchname-based
+variants on these workloads.
+
+We can draw several other conclusions from these results.
+
+\setlist{nolistsep}
+\begin{itemize}
+    \item TicToc variants generally outperform not only 2PL/OCC but also their
+          STO and MVTO analogues, due to TicToc's advanced timestamp-based
+          scheme.
+    \item Disk-based variants are substantially slower, due to I/O to fetch
+          timestamps. I/O overhead is particularly pronounced in write-intensive
+          workloads because, as explained in \Cref{sec:background:motivation},
+          reads bring in the timestamps ``for free'' but writes to SplinterDB do
+          not cause the old value (and hence the old timestamps) to be read into
+          cache. Consequently, Disk-based variants incur reads for every write,
+          incurring high overhead in write-intensive workloads.
+    \item The gap between Disk-based and other variants is also larger in the
+          medium-contended workloads because these workloads have less locality,
+          increasing cache miss rates.
+    \item MVTO-Disk is also particularly slow because it stores old versions on
+          disk and uses a range query to find the most recent version whenever
+          it needs to bring a key into cache. Range queries are slower than
+          point queries because range queries do not use filters to avoid I/O in
+          SplinterDB. In contrast, MVTO-Disk-Cache is able to utilize the same
+          \textit{V0} technique as our \sketchname-basedMVTO variants, which
+          enables it to use point queries instead of range queries to bring keys
+          into cache.  As a result, MVTO-Disk-Cache substantially outperforms
+          MVTO-Disk.
+\end{itemize}
+
+
+\begin{figure}[!t]
+    \centering
+    \resizebox{\textwidth}{!}{%
+        \begin{tikzpicture}
+            \begin{groupplot}[group style={group size=4 by 1,
+                            /pgf/bar width=2.7pt},
+                    height = 3.6cm,
+                    width = 4.5cm,
+                    ybar= 2*\pgflinewidth,
+                    xtick={-1, 0.425, 1.7125, 3.1},
+                    xticklabels={2PL/OCC, STO, MVTO, TicToc},
+                    ymajorgrids=true,
+                    enlarge x limits = 0.225,
+                    legend columns=-1,
+                    legend entries={{\ssmall Memory (Idealized)}, {\ssmall Disk}, {\ssmall Disk-Cache}, {\ssmall \fsketchname},  {\ssmall \psketchname}},
+                    area legend,
+                    legend to name=grouplegend,
+                ]
+
+                % graph [1,1] high
+                \nextgroupplot[YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}, ylabel style={yshift=-5pt}]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 44.788867)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 16.090133)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 145.850667) (1.7125, 181.95) (3, 288.844333)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 77.255) (1.7125, 0.669773) (3, 90.075633)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 48.505933) (1.7125, 46.451467) (3, 63.239933)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 63.550667) (1.7125, 62.2656) (3, 112.575333)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 119.693333) (1.7125, 120.718) (3, 224.293)};
+                \coordinate (top) at (rel axis cs:0,1);% coordinate at top of the first plot
+
+                % graph [2,1] abort rate
+                \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}, ylabel style={yshift=-3pt}]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.162746)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.272886)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.124274) (1.7125, 0.052306) (3, 0.058323)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.125071) (1.7125, 0.066406) (3, 0.058108)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.143426) (1.7125, 0.06801) (3, 0.060623)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.243168) (1.7125, 0.261633) (3, 0.118915)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.141617) (1.7125, 0.113494) (3, 0.064861)};
+
+                % graph [3,1] medium
+                \nextgroupplot[YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}, ylabel style={yshift=-8pt}]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 114.436)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 15.946)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 114.518) (1.7125, 102.656667) (3, 114.271667)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 83.553) (1.7125, 0.640778) (3, 57.3336)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 46.006033) (1.7125, 35.193433) (3, 45.397667)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 47.0387) (1.7125, 42.445667) (3, 113.193333)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 101.459) (1.7125, 79.5607) (3, 115.063)};
+
+                % graph [4,1] medium abort rate
+                \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}, ylabel style={yshift=-3pt}]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.000793)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.000174)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.000557) (1.7125, 0.000091) (3, 0.000358)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.000203) (1.7125, 0.000052) (3, 0.000076)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.000182) (1.7125, 0.000183) (3, 0.000067)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.312689) (1.7125, 0.322235) (3, 0.000367)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.128001) (1.7125, 0.078421) (3, 0.000441)};
+                \coordinate (bot) at (rel axis cs:1,0);% coordinate at bottom of the last plot
+
+            \end{groupplot}
+            \coordinate (c) at ($(top)!.5!(bot)$);
+            \coordinate (cc1) at ($(top)!.25!(bot)$);
+            \coordinate (cc2) at ($(top)!.75!(bot)$);
+
+            \node[above] at (c |- current bounding box.north) {\ref{grouplegend}};
+            \node[below] at (cc1 |- current bounding box.south) {(a) High-contended (zipf=0.99)};
+            \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contended (zipf=0.6)};
+        \end{tikzpicture}
+    }
+    \caption[YCSB mixed-transaction workloads results]{YCSB mixed-transaction workloads results with 120 processing threads. 80\% of transactions perform 2 reads and 2 writes, and 20\% of transactions perform 28 reads. Note that, in the medium-contended workload, several schemes have abort rates very close to 0.}
+    \label{fig:ycsb:mixed}
+\end{figure}
+
+
+\paragraph{Mixed-transaction workloads.}  \Cref{fig:ycsb:mixed} shows the
+goodput and abort rates for our timestamp-based CC mechanisms on our
+mixed-transaction workloads. Several of the same observations apply here, as
+well: TicToc variants generally perform better than all other variants, 2PL, and
+OCC; Disk variants are substantially slower; and MVTO-Disk suffers in particular
+due to its use of range queries when bringing a key into cache. In
+high-contention workloads, STO and MVTO implementations with \psketchname
+demonstrate higher goodput compared to 2PL and OCC. However, in
+medium-contention scenarios, they experience performance degradation due to
+unnecessary aborts caused by timestamp approximation. Additionally,
+MVTO-\psketchname incurs extra overhead from maintaining a special V0 version.
+These workloads also show that the \psketchname-based variants consistently
+substantially outperform their \fsketchname-based variants. TicToc-\psketchname,
+STO-\psketchname, and MVTO-\psketchname have about 50\% greater goodput than
+their \fsketchname variants, respectively. This advantage stems from
+\psketchname's ability to maintain more accurate timestamp approximations
+compared to \fsketchname, resulting in fewer unnecessary aborts.
+
+
+\begin{figure}[!t]
+    \centering
+    \resizebox{.75\textwidth}{!}{%
+        \begin{tikzpicture}
+            \begin{groupplot}[group style={
+                            group size=2 by 1,
+                            horizontal sep=1.5cm,
+                            /pgf/bar width=2.7pt
+                        },
+                    height = 3.6cm,
+                    width = 4.5cm,
+                    ybar= 2*\pgflinewidth,
+                    xtick={-1, 0.425, 1.7125, 3.1},
+                    xticklabels={2PL/OCC, STO, MVTO, TicToc},
+                    ymajorgrids=true,
+                    enlarge x limits = 0.225,
+                    legend columns=1,
+                    legend entries={{\ssmall Memory (Idealized)}, {\ssmall Disk}, {\ssmall Disk-Cache}, {\ssmall \fsketchname},  {\ssmall \psketchname}},
+                    area legend,
+                    legend to name=grouplegend,
+                ]
+
+                % graph [1,1] high
+                \nextgroupplot[YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}, ylabel style={yshift=-5pt}]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 1.83184)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 1.154507)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 13.078167) (1.7125, 16.861367) (3, 9.470163)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 7.000837) (1.7125, 0.067857) (3, 3.49488)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 6.60874) (1.7125, 5.065917) (3, 3.351893)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 12.855333) (1.7125, 10.172537) (3, 9.09105)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 13.5421) (1.7125, 11.255833) (3, 8.450747)};
+                \coordinate (top) at (rel axis cs:0,1);% coordinate at top of the first plot
+
+                % graph [1,2] abort rate
+                \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}, ylabel style={yshift=-5pt}]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.773841)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.633733)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.302199) (1.7125, 0.268966) (3, 0.247955)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.310228) (1.7125, 0.325941) (3, 0.249079)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.333103) (1.7125, 0.270333) (3, 0.254321)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.307612) (1.7125, 0.304549) (3, 0.249676)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.307297) (1.7125, 0.33709) (3, 0.252645)};
+                \coordinate (bot) at (rel axis cs:1,0);% coordinate at bottom of the last plot
+
+            \end{groupplot}
+            \coordinate (c) at ($(top)!.5!(bot)$);
+
+            \node[right=4cm] at (c |- current bounding box.east) {\ref{grouplegend}};
+        \end{tikzpicture}
+    }
+    \caption[YCSB long-transaction workloads results]{YCSB long-transaction workloads results with 120 processing threads. 5\% of transactions perform 1000 reads and the rest of transactions perform 8 writes and 8 reads. The distribution is Zipfian with 0.9.}
+    \label{fig:ycsb:long}
+\end{figure}
+
+\paragraph{Long-transaction workload.}  \Cref{fig:ycsb:long} shows our final
+YCSB workload, which includes some long transactions that read 1000 keys.  Most
+of the trends here are similar to the other YCSB  workloads.
+
+The main take-away is that STO and TicToc with approximate timestamp storage
+work just as well as their Memory variants, demonstrating that approximate
+timestamps can handle large transactions, not just small ones.
+
+\begin{figure}[!t]
+    \centering
+    \resizebox{.75\textwidth}{!}{%
+        \begin{tikzpicture}
+            \begin{groupplot}[group style={
+                            group size=2 by 1,
+                            horizontal sep=1.5cm
+                        },
+                    height = 3.6cm,
+                    width = 4.5cm,
+                    xtick=data,
+                    ymajorgrids=true,
+                    enlarge x limits = 0.25,
+                    legend columns=1,
+                    legend entries={{\ssmall Disk} {\ssmall \psketchname}},
+                    legend to name=grouplegend,
+                    label style={font=\footnotesize},
+                    ticklabel style={font=\ssmall},
+                ]
+
+                % graph [1,1] high
+                \nextgroupplot[title={\small{High-Contended (zipf=0.99)}}, title style={xshift=-10pt}, xlabel={SplinterDB Cache Size (GB)}, ylabel={Goodput (KTPS)}]
+                \addplot[Disk-LineStyle] coordinates {(6, 49.263467) (12, 69.5672) (18, 75.883167) (24, 81.314367) (30, 81.7691) (36, 81.4466)};
+                \addplot[FPSketch-LineStyle] coordinates {(6, 115.33) (12, 175.96) (18, 193.158333) (24, 195.850333) (30, 197.279667) (36, 199.209)};
+                \coordinate (top) at (rel axis cs:0,1);% coordinate at top of the first plot
+
+                % graph [1,1] medium
+                \nextgroupplot[title={\small{Medium-Contended (zipf=0.6)}}, xlabel={SplinterDB Cache Size (GB)}]
+                \addplot[Disk-LineStyle] coordinates {(6, 29.168467) (12, 47.3736) (18, 59.791367) (24, 71.666667) (30, 86.460567) (36, 103.74)};
+                \addplot[FPSketch-LineStyle] coordinates {(6, 45.608067) (12, 74.820133) (18, 96.687467) (24, 128.449) (30, 169.679) (36, 215.528)};
+                \coordinate (bot) at (rel axis cs:1,0);% coordinate at bottom of the last plot
+            \end{groupplot}
+            \coordinate (c) at ($(top)!.5!(bot)$);
+
+            \node[right=4cm] at (c |- current bounding box.east) {\ref{grouplegend}};
+        \end{tikzpicture}
+    }
+    \caption[TicToc Disk and \psketchname with varying SplinterDB Cache Size]{YCSB read-intensive small-transaction workloads for TicToc Disk and \psketchname with varying SplinterDB Cache Size.}
+    \label{fig:ycsb:spl_cache}
+\end{figure}
+
+
+
+\paragraph{Approximate timestamp storage versus caching.}
+\Cref{fig:ycsb:spl_cache} shows how varying the SplinterDB cache size affects
+goodput of TicToc-Disk and TicToc-\psketchname.  The purpose of this experiment
+is to answer the question: can we fix the performance problems in Disk-based
+schemes by simply increasing cache sizes?
+
+\Cref{fig:ycsb:spl_cache} suggest that the answer is ``No.''  In the
+high-contended workload, TicToc-Disk with a 37 GiB cache is still slower than
+TicToc-\psketchname with a mere 6GiB cache.  And in the medium-contended
+workload, TicToc-Disk needs roughly twice as much cache to match the goodput of
+TicToc-\psketchname, which needs only 32KiBs to store timestamps.
+
+There are likely several reasons that database cache is not as effective as
+in-memory approximate timestamp storage.  First, caches store disk blocks, which
+may store numerous key-value-timestamp records.  So, in order to store a single
+timestamp for a single key, the block cache will need to hold an entire disk
+block, whereas approximate timestamp storage will need only a few bytes.  Thus
+approximate timestamp storage just uses memory more efficiently. Second,
+timestamp storage is optimized for quick, in-memory access, whereas database
+caches can have high overheads due to locking, latching, and data structure
+traversals, among other things.
+
+\paragraph{Metadata Memory Usage.}
+We now compare the memory used to store metadata in each scheme. The Memory
+variant stored in RAM 40 bytes for each KV-pair: a 24-byte key and a 16-byte
+structure containing a read timestamp, write timestamp, and a latch.  There were
+673M keys in the database, so the Memory variant stored 27GiB of metadata.  The
+Disk variant also stored 16 bytes of metadata with each 124-byte record in the
+database.  All metadata was stored in SplinterDB's 6GiB cache, so the total
+memory used for metadata was approximately 16 / (124 + 16) $\times$ 6 GiB
+$\approx$ 685 MiB.  The Disk-Cache just adds a small 32KiB cache to the Disk
+scheme and hence has similar memory usage. The \sketchname variants use a 32KiB
+cache plus a hashtable of 40-byte entries for each active key, for a total
+average memory usage of 160KiB.
+
+\begin{figure}[!t]
+    \centering
+    \resizebox{.75\textwidth}{!}{%
+        \begin{tikzpicture}
+            \begin{groupplot}[group style={
+                            group size=2 by 1,
+                            horizontal sep=1.5cm
+                        },
+                    height = 3.6cm,
+                    width = 4.5cm,
+                    xtick=data,
+                    log basis x=10,
+                    ymajorgrids=true,
+                    enlarge x limits = 0.25,
+                    legend columns=-1,
+                    legend entries={{\ssmall Disk-Cache}, {\ssmall \psketchname}},
+                    legend to name=grouplegend,
+                    label style={font=\footnotesize},
+                    ticklabel style={font=\ssmall},
+                    xtick={0.032, 160, 240, 320},
+                    xticklabels={32KB, 160, 240, 320},
+                ]
+
+                % graph [1,1] high
+                \nextgroupplot[title={{\small High-Contended (zipf=0.99)}}, title style={xshift=-10pt}, xlabel={Timestamp Cache Size (MB)}, ylabel={Goodput (KTPS)}]
+                \addplot[Disk-Cache-LineStyle] coordinates {(0.032, 43.443867) (0.32, 49.2635) (3.2, 53.8861) (32, 57.0798)
+                        (160, 83.2997) (200, 97.8576) (240, 132.731) (320, 134.029)};
+                \draw [dashed, color=violet, line width=0.6pt] (axis cs:0.032,115.33) -- (axis cs:320,115.33);
+                \coordinate (top) at (rel axis cs:0,1);% coordinate at top of the first plot
+
+                % graph [1,1] medium
+                \nextgroupplot[title={{\small Medium-Contended (zipf=0.6)}}, xlabel={Timestamp Cache Size (MB)}, ymax=50]
+                \addplot[Disk-Cache-LineStyle] coordinates {(0.032, 23.9132) (0.32, 25.9769) (3.2, 26.9321) (32, 27.1612)
+                        (160, 29.1538) (200, 29.3707) (240, 29.7308) (320, 31.1101)};
+                \draw [dashed, color=violet, line width=0.6pt] (axis cs:0.032,45.608067) -- (axis cs:320,45.608067);
+                \coordinate (bot) at (rel axis cs:1,0);% coordinate at bottom of the last plot
+            \end{groupplot}
+            \coordinate (c) at ($(top)!.5!(bot)$);
+
+            \node[right=4cm] at (c |- current bounding box.east) {\ref{grouplegend}};
+        \end{tikzpicture}
+    }
+    \caption[TicToc Disk-Cache and \psketchname with 32KiB of sketch size]{YCSB read-intensive small-transaction workloads for TicToc Disk-Cache compared to \psketchname with 32KiB of sketch size (Dashed line).}
+    \label{fig:ycsb:disk_cache}
+\end{figure}
+
+
+\paragraph{Disk-Cache versus \psketchname.}
+\Cref{fig:ycsb:disk_cache} compares the performance of Disk-Cache with
+\psketchname. We used the same configuration for \psketchname--32KiB cache. The
+dashed line is the goodput of \psketchname. In high-contended workloads,
+Disk-Cache requires about 220MB of cache to achieve the same goodput as
+\psketchname, which uses only 32KiB of memory. Disk-Cache never achieves the
+same goodput as \psketchname in our medium-contended workloads because the
+Disk-Cache variant still requires I/O to access timestamps, while \psketchname
+does not.
+
+
+\begin{figure*}[!t]
+    \centering
+    \resizebox{\textwidth}{!}{%
+        \begin{tikzpicture}
+            \begin{groupplot}[group style={group size=4 by 2,
+                            /pgf/bar width=2.7pt},
+                    height = 3.6cm,
+                    width = 4.5cm,
+                    ybar= 2*\pgflinewidth,
+                    xtick={-0.8625, 0.425, 1.7125, 3},
+                    xticklabels={2PL/OCC, STO, MVTO, TicToc},
+                    xticklabel style={font=\tiny},
+                    ymajorgrids=true,
+                    enlarge x limits = 0.2,
+                    legend columns=-1,
+                    legend entries={{\ssmall Memory (Idealized)}, {\ssmall Disk}, {\ssmall Disk-Cache}, {\ssmall \fsketchname},  {\ssmall \psketchname}},
+                    area legend,
+                    legend to name=grouplegend,
+                ]
+
+                % graph [1,1]
+                \nextgroupplot[title={4 warehouses},YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 15.5001)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 7.206467)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 32.585533) (1.7125, 22.4149) (3, 39.639567)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 18.557367) (1.7125, 1.411917) (3, 26.220533)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 15.341867) (1.7125, 9.981953) (3, 15.5759)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 29.750667) (1.7125, 18.412333) (3, 27.169833)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 32.529233) (1.7125, 19.205733) (3, 35.212833)};
+                \coordinate (top) at (rel axis cs:0,1);% coordinate at top of the first plot
+
+                % graph [1,2]
+                \nextgroupplot[title={8 warehouses}, YCSBThroughputBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 20.284167)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 4.85534)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 40.531467) (1.7125, 28.662767) (3, 45.897233)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 24.197667) (1.7125, 1.168913) (3, 31.277167)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 19.0729) (1.7125, 11.346067) (3, 19.727467)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 33.2235) (1.7125, 20.8041) (3, 30.266267)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 39.8032) (1.7125, 22.932033) (3, 41.0892)};
+
+                % graph [1,3]
+                \nextgroupplot[title={16 warehouses},YCSBThroughputBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 27.2005)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 3.224307)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 43.0441) (1.7125, 32.64) (3, 45.766333)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 28.275833) (1.7125, 0.965151) (3, 33.350267)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 21.6463) (1.7125, 12.093367) (3, 21.253)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 30.3558) (1.7125, 20.678133) (3, 33.882967)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 40.8327) (1.7125, 24.077067) (3, 41.9933)};
+
+
+                % graph [1,4] 32wh
+                \nextgroupplot[title={32 warehouses},YCSBThroughputBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 32.723)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 3.22205)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 40.381433) (1.7125, 31.824867) (3, 40.255467)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 28.132067) (1.7125, 0.665631) (3, 30.495833)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 20.6061) (1.7125, 11.3145) (3, 19.752167)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 26.470933) (1.7125, 18.868) (3, 37.3103)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 38.500733) (1.7125, 20.832467) (3, 40.297567)};
+
+                \coordinate (bot) at (rel axis cs:1,0);% coordinate at bottom of the last plot
+
+                % graph [2,1] 4 wh
+                \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.341061)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.583609)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.300203) (1.7125, 0.347864) (3, 0.355087)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.303987) (1.7125, 0.356123) (3, 0.361833)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.308412) (1.7125, 0.380381) (3, 0.364769)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.33226) (1.7125, 0.38239) (3, 0.392239)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.313404) (1.7125, 0.366488) (3, 0.377045)};
+
+                % graph [2,2] 8 wh
+                \nextgroupplot[AbortRateBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.261302)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.625084)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.256733) (1.7125, 0.286516) (3, 0.329841)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.262611) (1.7125, 0.28539) (3, 0.321566)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.27151) (1.7125, 0.300326) (3, 0.320764)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.346327) (1.7125, 0.379734) (3, 0.374494)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.293032) (1.7125, 0.312573) (3, 0.36223)};
+
+                % graph [2,3] 16 wh
+                \nextgroupplot[AbortRateBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.183238)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.627542)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.191165) (1.7125, 0.193511) (3, 0.285334)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.188238) (1.7125, 0.191728) (3, 0.26948)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.208325) (1.7125, 0.202268) (3, 0.280641)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.389454) (1.7125, 0.426238) (3, 0.341602)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.292552) (1.7125, 0.232916) (3, 0.340413)};
+
+                % graph [2,4] 32 wh
+                \nextgroupplot[AbortRateBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.131109)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.513606)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.06524) (1.7125, 0.054717) (3, 0.206781)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.066701) (1.7125, 0.051728) (3, 0.197086)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.057671) (1.7125, 0.041865) (3, 0.187192)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.428149) (1.7125, 0.469519) (3, 0.281988)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.312604) (1.7125, 0.180906) (3, 0.280081)};
+            \end{groupplot}
+            \coordinate (c) at ($(top)!.5!(bot)$);
+
+            \node[above] at (c |- current bounding box.north) {\ref{grouplegend}};
+        \end{tikzpicture}
+    }
+    \caption[TPC-C results]{TPC-C results with 120 processing threads (More warehouses means less contention).}
+    \label{fig:tpcc}
+\end{figure*}
+
+
+\subsection{TPC-C Results}
+
+\Cref{fig:tpcc} shows the goodput and abort rates for TPC-C workloads for
+various number of warehouses.  The primary take-away from these experiments is
+that the trends seen in the YCSB experiments generalize to other workloads.
+
+The main observation is that, as in the YCSB experiments, STO-\psketchname and
+TicToc-\psketchname are able to nearly match the performance of their Memory
+variants.
+
+Moreover, TicToc variants generally outperform 2PL, OCC, and the other variants;
+Disk-based variants are substantially slower than Memory, \fsketchname, and
+\psketchname; MVTO-Disk is particularly slow due to its use of range queries;
+the gap between STO and TicToc variants tends to close as contention decreases
+(i.e. as the warehouses increase); and the \psketchname variants never perform
+substantially worse than the \fsketchname variants.
+
+\begin{figure}[t]
+    \resizebox{\textwidth}{!}{%
+        \begin{tikzpicture}
+            \begin{groupplot}[group style={group size=3 by 1},
+                    width=6.5cm, height=4cm,
+                    major x tick style=transparent,
+                    major y tick style=transparent,
+                    ymajorgrids=true,
+                    enlarge x limits={0.05}, % Adjust this value to reduce padding on left and right
+                    xticklabel style={font=\tiny}, % Enlarges the xtick labels
+                    yticklabel style={font=\tiny}, % Enlarges the xtick labels
+                    label style={font=\footnotesize},
+                    xlabel={Sketch Size (Bytes)},
+                    symbolic x coords={128, 512, 1K, 2K, 4K, 8K, 16K, 32K, 128K, 4M, 8M},
+                    xtick=data,
+                    scaled y ticks=false,
+                    legend columns=-1,
+                    legend entries={{\ssmall Read-intensive, 673M keys, 120 threads},
+                            {\ssmall Write-intensive, 673M keys, 120 threads},
+                            {\ssmall Read-intensive, 673M keys, 16 threads},
+                            {\ssmall Read-intensive, 67.3M keys, 120 threads}},
+                    legend to name=grouplegend,
+                    ymin=0,
+                ]
+
+                \nextgroupplot[title={TicToc}, ylabel={Goodput (KTPS)}, ymax=170]
+                \addplot[mark=*, mark size=1.5, color=teal] %Read-intensive,673M keys,120 threads
+                coordinates {
+                        (128,82.9978)
+                        (512,83.3859)
+                        (1K,86.7366)
+                        (2K,89.6129)
+                        (4K,97.5232)
+                        (8K,112.558)
+                        (16K,121.09)
+                        (32K,128.901)
+                        (128K,130.175)
+                        (4M,129.034)
+                        (8M,132.957)
+                    };
+                \draw [dashed, color=teal, line width=1pt] (axis cs:128,140.330333) -- (axis cs:8M,140.330333);
+                \addplot[mark=square*, mark size=1.5, color=orange] %Write-intensive,673M keys,120 threads
+                coordinates {
+                        (128,37.2635)
+                        (512,36.9126)
+                        (1K,38.2873)
+                        (2K,39.0611)
+                        (4K,41.783)
+                        (8K,44.3566)
+                        (16K,45.466)
+                        (32K,46.2377)
+                        (128K,46.1481)
+                        (4M,45.7558)
+                        (8M,45.8451)
+                    };
+                \draw [dashed, color=orange, line width=1pt] (axis cs:128,59.562333) -- (axis cs:8M,59.562333);
+                \addplot[mark=diamond*, mark size=1.5, color=violet] %Read-intensive,673M keys,16 threads
+                coordinates {
+                        (128,22.2997)
+                        (512,22.6541)
+                        (1K,22.5158)
+                        (2K,23.7622)
+                        (4K,25.5448)
+                        (8K,27.5555)
+                        (16K,28.8266)
+                        (32K,29.1491)
+                        (128K,29.3334)
+                        (4M,29.6163)
+                        (8M,29.5459)
+                    };
+                \draw [dashed, color=violet, line width=1pt] (axis cs:128,29.4049) -- (axis cs:8M,29.4049);
+                \addplot[mark=pentagon*, mark size=1.5, color=cyan] %Read-intensive,67.3M keys,120 threads
+                coordinates {
+                        (128,63.275)
+                        (512,65.5834)
+                        (1K,66.0073)
+                        (2K,67.1957)
+                        (4K,68.205)
+                        (8K,72.3128)
+                        (16K,83.2532)
+                        (32K,80.8433)
+                        (128K,77.646)
+                        (4M,82.7698)
+                        (8M,84.643)
+                    };
+                \draw [dashed, color=cyan, line width=1pt] (axis cs:128,79.3477) -- (axis cs:8M,79.3477);
+                \coordinate (top) at (rel axis cs:0,1);% coordinate at top of the first plot
+
+                \nextgroupplot[title={STO}, ymax=50]
+                \addplot[mark=*, mark size=1.5, color=teal] %Read-intensive,673M keys,120 threads
+                coordinates {
+                        (128,19.6455)
+                        (512,31.0831)
+                        (1K,36.2078)
+                        (2K,39.0886)
+                        (4K,40.8162)
+                        (8K,41.41)
+                        (16K,40.8792)
+                        (32K,41.5003)
+                        (128K,41.6591)
+                        (4M,41.5734)
+                        (8M,41.0942)
+                    };
+                \draw [dashed, color=teal, line width=1pt] (axis cs:128,38.878867) -- (axis cs:8M,38.878867);
+                \addplot[mark=square*, mark size=1.5, color=orange] %Write-intensive,673M keys,120 threads
+                coordinates {
+                        (128,8.65522)
+                        (512,10.1074)
+                        (1K,10.3501)
+                        (2K,10.31)
+                        (4K,10.6523)
+                        (8K,11.0946)
+                        (16K,11.1151)
+                        (32K,10.9688)
+                        (128K,11.2838)
+                        (4M,10.891)
+                        (8M,10.7543)
+                    };
+                \draw [dashed, color=orange, line width=1pt] (axis cs:128,11.258033) -- (axis cs:8M,11.258033);
+                \addplot[mark=diamond*, mark size=1.5, color=violet] %Read-intensive,673M keys,16 threads
+                coordinates {
+                        (128,8.91054)
+                        (512,15.1936)
+                        (1K,17.5348)
+                        (2K,18.488)
+                        (4K,19.0083)
+                        (8K,19.1409)
+                        (16K,19.2812)
+                        (32K,19.2058)
+                        (128K,19.0619)
+                        (4M,19.3269)
+                        (8M,19.3516)
+                    };
+                \draw [dashed, color=violet, line width=1pt] (axis cs:128,18.6079) -- (axis cs:8M,18.6079);
+                \addplot[mark=pentagon*, mark size=1.5, color=cyan] %Read-intensive,67.3M keys,120 threads
+                coordinates {
+                        (128,17.2532)
+                        (512,26.922)
+                        (1K,30.644)
+                        (2K,32.4291)
+                        (4K,33.5935)
+                        (8K,34.0212)
+                        (16K,33.5703)
+                        (32K,34.3889)
+                        (128K,33.9737)
+                        (4M,33.7475)
+                        (8M,33.9494)
+                    };
+                \draw [dashed, color=cyan, line width=1pt] (axis cs:128,33.0965) -- (axis cs:8M,33.0965);
+
+                \nextgroupplot[title={MVTO}, ymax=50]
+                \addplot[mark=*, mark size=1.5, color=teal] %Read-intensive,673M keys,120 threads
+                coordinates {
+                        (128,20.4138)
+                        (512,30.8773)
+                        (1K,34.5335)
+                        (2K,37.081)
+                        (4K,38.4838)
+                        (8K,38.6555)
+                        (16K,38.5799)
+                        (32K,38.3015)
+                        (128K,39.0719)
+                        (4M,38.677)
+                        (8M,39.458)
+                    };
+                \draw [dashed, color=teal, line width=1pt] (axis cs:128,38.669267) -- (axis cs:8M,38.669267);
+                \addplot[mark=square*, mark size=1.5, color=orange] %Write-intensive,673M keys,120 threads
+                coordinates {
+                        (128,7.00038)
+                        (512,7.38717)
+                        (1K,7.61149)
+                        (2K,7.83633)
+                        (4K,7.92758)
+                        (8K,7.81979)
+                        (16K,7.89813)
+                        (32K,7.87943)
+                        (128K,7.99129)
+                        (4M,8.07723)
+                        (8M,7.75257)
+                    };
+                \draw [dashed, color=orange, line width=1pt] (axis cs:128,8.60338) -- (axis cs:8M,8.60338);
+                \addplot[mark=diamond*, mark size=1.5, color=violet] %Read-intensive,673M keys,16 threads
+                coordinates {
+                        (128,8.77212)
+                        (512,14.3849)
+                        (1K,16.1168)
+                        (2K,17.2062)
+                        (4K,17.6023)
+                        (8K,17.9371)
+                        (16K,17.9369)
+                        (32K,17.9554)
+                        (128K,18.0786)
+                        (4M,17.917)
+                        (8M,18.0425)
+                    };
+                \draw [dashed, color=violet, line width=1pt] (axis cs:128,18.8555) -- (axis cs:8M,18.8555);
+                \addplot[mark=pentagon*, mark size=1.5, color=cyan] %Read-intensive,67.3M keys,120 threads
+                coordinates {
+                        (128,17.4626)
+                        (512,24.3576)
+                        (1K,26.7674)
+                        (2K,29.7418)
+                        (4K,30.3356)
+                        (8K,31.3706)
+                        (16K,30.8751)
+                        (32K,30.9642)
+                        (128K,30.3586)
+                        (4M,30.473)
+                        (8M,31.0096)
+                    };
+                \draw [dashed, color=cyan, line width=1pt] (axis cs:128,28.0994) -- (axis cs:8M,28.0994);
+                \coordinate (bot) at (rel axis cs:1,0);% coordinate at bottom of the last plot
+            \end{groupplot}
+            \coordinate (c) at ($(top)!.5!(bot)$);
+            \node[above] at (c |- current bounding box.north) {\ref{grouplegend}};
+        \end{tikzpicture}
+    }
+    \caption[Factor-analysis of the sketch size]{The goodput of TicToc, STO, and MVTO for high-contended YCSB
+        workloads with varying sketch sizes. We configure workloads by operations
+        proportion (Read-intensive vs. Write-intensive), the database size (containing
+        673M vs. 67.3M keys), and the concurrency level (120 vs 16 threads). The dashed
+        lines represent the goodputs of the Memory variant for each configuration.}
+    \label{fig:sketch_size}
+\end{figure}
+
+
+
+\subsection{Sketch Size}
+
+
+We conduct a factor-analysis of the sketch size of \sketchname for TicToc, STO,
+and MVTO. \Cref{fig:sketch_size} presents the goodput for the high-contended
+YCSB workloads as the sketch size increases. We vary workload type
+(read-intensive vs. write-intensive), the number of worker threads varying the
+amount of data updating the sketch, and the database size determined by the
+number of keys in the database, representing the key range of workloads.
+
+The main takeaway from these experiments is that regardless of the setting, the
+sketch can be at most a few KiB, which is less than 1\% of the database size, to
+avoid being a limiting factor since the goodput is similar to that of their
+memory counterparts.
+
+
+
+
+\section{Summary}
+\label{sec:summary}
+
+
+In this chapter we introduced \emph{approximate timestamp storage}, a
+novel timestamp storage system that enables timestamp-based CC
+mechanisms to operate efficiently in modern on-disk key-value stores.
+Approximate timestmap storage provides guarantees we identified to be
+suffient for preserving the correctness of the timestmap-based CC
+mechanisms we studied, while being extremely memory efficient. We
+presented the design of an approximate timestamp storage system,
+\sketchname, and implemented two of its variants, \fsketchname and
+\psketchname. We integrated \sketchname with three timestamp-based CC
+protocols--STO, MVTO, and TicToc. Our evaluation shows superior
+performance across various workloads using our \sketchname approach.
+Notably, TicToc with \psketchname achieves up to 11$\times$ better
+performance than traditional 2PL and OCC approaches, and up to
+27$\times$ improvement over disk-based timestamp storage. \sketchname
+unlocks the ability to adapt existing CC techniques and paves the way
+for innovative CC mechanisms in future disk-based key-value stores.
+
+We believe \sketchname is broadly applicable across a variety of
+domains, although the performance benefits may vary based on other
+overheads in the system.  For example, our approach could benefit
+distributed systems by improving local node performance. In a
+shared-nothing architecture, a per-partition \sketchname instance
+could manage timestamps for its corresponding keys, providing the
+same local memory efficiency and reduced disk I/O demonstrated in
+our work.  In distributed systems or in systems based on older data
+structures, such as B-trees, other performance bottlenecks will
+obviously reduce the impact of an optimized concurrency-control
+mechanism.  However, extensive research has focused on optimizing
+these aspects through techniques like reducing network round-trips
+and improving global timestamp synchronization. As those orthogonal
+optimizations are applied, the local performance improvements
+provided by \sketchname would become even more promising for overall
+system throughput.

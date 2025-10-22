@@ -1,160 +1,302 @@
 
-\section{Timestamp-Based Concurrency Control}
-\label{sec:background:tbcc}
-\defn{Timestamp-based} CC mechanisms employ timestamps to order
-transactions. At a high level, each transaction is assigned a
-timestamp that indicates when it serializes in relation to all other
-transactions;  a transaction $T_1$ with a timestamp $t_1 < t_2$ will
-generally be serialized before a transaction $T_2$ with timestamp
-$t_2$.
+This chapter provides the theoretical foundation and practical motivation for
+our work on approximate timestamping in on-disk database systems. We begin by
+examining the fundamental principles of concurrency control in transactional
+systems, then trace the evolution of storage technology that has reshaped
+performance bottlenecks, introduce a representative approximate data structure,
+and finally present the compelling case for why approximate timestamping
+represents a necessary innovation.
 
-A subclass of timestamp-based mechanisms, which we focus on in this
-paper, uses \emph{per-version read and write timestamps} to detect
-conflicts. These timestamps correspond to the timestamp of the most
-recent transaction that read or wrote the key, respectively. Using
-both types of timestamps can offer higher concurrency than using a
-single write timestamp because it allows multiple transactions to read
-simultaneously. To maintain correctness, a transaction $T$ must
-satisfy the following conditions in order to commit: (1) for every key
-$k$ accessed by $T$, $k.write\_timestamp < T.timestamp$ and (2) for
-every key $k$ in $T$'s write set, $k.read\_timestamp < T.timestamp$.
-The process of checking whether these conditions are met is known as
-\emph{validation}. A key feature of read/write timestamp-ordering
-mechanisms, which we leverage in this work, is that it is sufficient
-to maintain \emph{upper bounds} on the read and write timestamps of
-keys that are not involved in any current transactions. An
-overinflated read or write timestamp may cause unnecessary, or
-\emph{spurious} aborts, but will not jeopardize the consistency of the
-kv-store.
+\section{Concurrency Control in Transactional Systems}
+\label{sec:background:cc}
 
-Timestamp-based CC schemes differ in when and how they assign
-timestamps to transactions, when the validation is done, and when
-updates are made to the keys that are being written, among other
-things. In this paper, we focus on three variants in particular, known
-as \emph{Strict Timestamp Ordering
-  (STO)}~\citep{bernstein1987concurrency}, Multi-Version Timestamp
-Ordering (MVTO)~\citep{reed1983mvto}, and TicToc~\citep{yu2016tictoc},
-as three examples of how approximate timestamp storage can be used.
-Below, we briefly outline how each of these variants works.
+Concurrency control is the set of mechanisms that ensure multiple transactions
+can execute simultaneously while maintaining data consistency. To understand why
+this is crucial, we must first examine the fundamental properties that all
+transactional systems must guarantee.
 
-\paragraph{Strict Timestamp Ordering (STO).}
-In STO, each transaction is assigned a timestamp at the beginning of
-its execution by incrementing a global timestamp counter. Transactions
-are pessimistic; the first time a transaction $T$ accesses a key $k$,
-$T$ attempts to acquire $k$'s lock, waiting on the lock if it's
-already taken (the locks are necessary for a correct multi-threaded
-implementation of STO). Once a lock is acquired for a key $k$, $T$
-checks whether its timestamp satisfies the conditions outlined above
-with respect to $k$'s timestamps. If not, $T$ releases all locks and
-aborts. Otherwise, it continues. Transactions do not release locks
-until they finish, although a transaction may need to check the
-timestamps of a key more than once if it accesses the same key via
-both a read and a write. To commit, $T$ applies its changes to the
-data, updates the read timestamps of the keys in its read set and the
-write timestamps of the keys in its write set to its own timestamp,
-and releases all locks.
+\subsection{The ACID Properties and the Need for Concurrency Control}
+\label{sec:background:acid}
 
-\paragraph{Multi-Version Timestamp Ordering (MVTO).} MVTO is
-considered to be the original MVCC protocol~\citep{wu2017mvcc}. MVCC is
-useful for workloads that run long read-heavy transactions, since it
-allows readers to freely access old snapshots of the database.
-However, maintaining a history of updates to the records (versions),
-can be expensive in storage, memory, and computation for garbage
-collection and for finding the correct version for a transaction to
-access)~\citep{qian2024epic}.
+Transactional database systems are built upon four fundamental guarantees,
+collectively known as the ACID properties: Atomicity, Consistency, Isolation,
+and Durability. These properties ensure that database operations behave reliably
+even when multiple users access the system simultaneously.
 
-Like STO, MVTO serializes transactions according to the timestamps
-assigned at the beginning of transactions, from a global timestamp
-counter and conflicts are handled in the same way.
+\textbf{Atomicity} ensures that each transaction is treated as a single,
+indivisible unit. Either all operations within a transaction complete
+successfully, or none of them do. If any part of a transaction fails, the entire
+transaction is rolled back, leaving the database in its original state.
 
-\paragraph{TicToc.}
-TicToc, in contrast, is an optimistic concurrency control (OCC)
-scheme, and dynamically chooses timestamps for its transactions during
-validation. A transaction $T$ first reads all items in its read set
-without taking any locks. Then, during its validation phase, TicToc
-reads its read set, locks its write set, and assigns $T$ a timestamp
-that is (1) larger than the read timestamp of each data item in $T$'s
-write set and (2) larger or equal to the write timestamp of each item
-in $T$'s read set. It then verifies that no conflicting transactions
-have committed since it chose its timestamp. This approach minimizes
-the time between choosing a timestamp and actually committing, thereby
-minimizing aborts.
+\textbf{Consistency} guarantees that a transaction brings the database from one
+valid state to another. All data integrity rules and constraints are maintained,
+ensuring that the database remains in a correct state after each transaction.
 
-\section{External-Memory Storage Systems}
+\textbf{Durability} ensures that once a transaction commits, its effects are
+permanent and will survive system failures. Committed data is stored
+persistently and can be recovered even after crashes or power outages.
 
-In this section, we explain hardware and software trends that have
-affected disk-based databases the last few decades.  The high-level
-take-aways are (1) concurrency has become more important due to
-increasing core counts and I/O parallelism in solid-state storage
-devices, (2) transaction overheads can be more prominent as storage
-device speeds have increased more than CPU and RAM speeds, and (3)
-modern storage data structures have performance characteristics that
-must be considered when designing CC mechanisms.
+\textbf{Isolation} is perhaps the most complex property and the primary focus of
+concurrency control. It ensures that concurrent transactions do not interfere
+with each other, making it appear as if transactions execute one at a time, even
+when they actually run simultaneously. This property is crucial because without
+proper isolation, concurrent transactions could see partial results from each
+other, leading to inconsistent data states.
 
-Solid-state drives now support millions of I/Os per second and
-gigabytes/second of throughput, whereas spinning disks typically top
-out at around a thousand IOPS and a few hundred megabytes/second of
-bandwidth~\citep{crucial-t700-review}.  However, extracting the full
-performance of solid-state storage requires issuing multiple I/Os
-concurrently (i.e., maintaining a high ``queue
-depth'')~\citep{crucial-t700-review}.  If given only one I/O at a time,
-most drives support less than 100,000 IOPS, sometimes as few as 10,000
-IOPS~\citep{crucial-t700-review}.
+Concurrency control mechanisms are specifically designed to enforce the
+isolation property. They ensure that concurrent transactions result in a system
+state that is equivalent to some serial execution of those transactions—a
+property called \emph{serializability}. This means that even though transactions
+may run at the same time, the final result is the same as if they had executed
+one after another in some order.
 
-Over the last two decades, CPUs have gone from single cores to dozens,
-but the instructions executed per second on a single core has remained
-relatively flat~\citep{microprocessor-trend-data}.
+\subsection{A Taxonomy of Concurrency Control Protocols}
+\label{sec:background:taxonomy}
 
-Together, these two facts mean that supporting a high degree of
-concurrency has become critical for disk-based database systems.
-Furthermore, I/O speeds have gone up more than CPU speeds.  For
-example, SSDs are about three to four orders of magnitude faster than
-spinning disks, in terms of IOPS, whereas today's multicore CPUs have
-increased total instruction throughput (across all cores) by only one
-to three orders of magnitude compared to single-core chips of the
-early 2000s~\citep{microprocessor-trend-data}.  This means that I/O
-cannot mask concurrency-control overheads to the same degree as 20
-years ago.
+Concurrency control protocols can be broadly categorized into three main
+families, each with distinct approaches to managing concurrent access to data.
+Understanding these approaches is essential for appreciating the trade-offs
+involved in different concurrency control strategies.
 
-Over the same time period, the data structures used for on-disk
-storage have also undergone a revolution due to the advent of
-\defn{write-optimized data structures}, such as log-structured merge
-trees (LSMs) and \bets. For example, mapped \bets, used in
-SplinterDB~\citep{splinterdb}, can ingest data orders of magnitude
-faster than older indexing structures, such as
-\btrees~\citep{splinterdb}, while supporting queries essentially as
-fast as in a \btree.  Consequently, modern storage systems can ingest
-new data much faster than they can query it.  For example, on some
-benchmarks, SplinterDB could perform more than 2M uniformly random
-insertions per second, compared to only about half a million uniformly
-random queries per second.  This is sometimes called the query/insert
-asymmetry~\citep{bender2015introduction}, and is consistent with
-theoretical lower bounds on the I/O costs of inserts and
-queries~\citep{Iacono2012UsingHT}, suggesting that this could be an
-enduring property of storage system performance.
+\subsubsection{Lock-Based Concurrency Control}
 
-The query/insert asymmetry is important for timestamp-based schemes
-because, if a timestamp-based mechanism stores timestamps in a
-write-optimized structure, then it may need to query for the
-timestamps of each key written by a transaction, inadvertently
-piggy-backing a (slow) query onto every (fast) write performed by the
-transaction, disproportionately impacting overall throughput.
+Lock-based concurrency control operates on the principle of preventing conflicts
+before they occur. These protocols assume that conflicts are likely and take
+proactive measures to avoid them by controlling access to data items.
 
-Finally, we note that it is not always practical to store all
-timestamps in memory.  For example, Facebook reports that many of its
-workloads have kv-pairs of less than 100 bytes in
-size~\citep{DBLP:conf/fast/CaoDVD20,AtikogluXuFr12},
-so storing two 8-byte timestamps for each kv-pair, as required in STO
-and TicToc, would take about 16\% as much space as the data itself.
-However, Facebook also reports that many of its RocksDB instances have
-a RAM-to-disk ratio of less than 5\%, sometimes as little as
-3\%~\citep{DBLP:conf/fast/CaoDVD20}.  Even in other scenarios where
-kv-pairs are larger (reducing the relative overhead of timestamps) or
-RAM is more plentiful, timestamps can still eat up a substantial
-portion of RAM that could otherwise be used for caching or other
-purposes.
+\textbf{Two-Phase Locking (2PL)} is the most widely used lock-based protocol.
+It operates in two distinct phases:
 
-\section{Count-Min Sketch}
+\begin{itemize}
+\item \textbf{Growing Phase}: During this phase, a transaction can acquire locks
+on data items but cannot release any locks. This phase continues as the
+transaction reads and writes data.
+\item \textbf{Shrinking Phase}: Once the transaction enters this phase, it can
+only release locks and cannot acquire new ones. This phase continues until the
+transaction completes.
+\end{itemize}
+
+The two-phase rule ensures that no other transaction can access a data item
+between the time when a transaction reads it and when it writes to it,
+preventing certain types of inconsistencies.
+
+\textbf{Advantages of 2PL:}
+\begin{itemize}
+\item \textbf{Prevents cascading aborts}: Once a transaction commits, no other
+transaction that read its data needs to be aborted.
+\item \textbf{Widely implemented}: Most commercial database systems use some
+form of 2PL.
+\item \textbf{Predictable behavior}: The locking mechanism provides clear
+guarantees about when conflicts will occur.
+\end{itemize}
+
+\textbf{Disadvantages of 2PL:}
+\begin{itemize}
+\item \textbf{High CPU overhead}: Managing locks requires significant
+computational resources, including maintaining lock tables and handling lock
+requests.
+\item \textbf{Deadlock potential}: When transactions wait for each other's
+locks, deadlocks can occur, requiring detection and resolution mechanisms.
+\item \textbf{Limited parallelism}: In high-contention scenarios, many
+transactions may be blocked waiting for locks, reducing overall system
+throughput.
+\end{itemize}
+
+To address deadlock issues, practical implementations often use policies like
+\emph{no-wait}, where transactions immediately abort if they cannot acquire a
+needed lock, rather than waiting and potentially creating deadlocks.
+
+
+\subsubsection{Optimistic Concurrency Control}
+
+Optimistic concurrency control (OCC) takes a fundamentally different approach to
+handling concurrent transactions. Rather than using locks to prevent conflicts
+from occurring, OCC assumes that conflicts are rare and permits transactions to
+proceed in parallel without synchronization during most of their execution.
+
+A typical OCC protocol consists of three phases:
+\begin{itemize}
+    \item \textbf{Read Phase}: A transaction reads data and performs
+    computations, keeping track of the data items it accesses but making changes
+    only to private, local copies.
+    \item \textbf{Validation Phase}: When the transaction is ready to commit,
+    the system checks whether the data the transaction read has been modified by
+    other transactions since it started. If so, the transaction must abort and
+    is typically retried. 
+    \item \textbf{Write Phase}: If validation succeeds, the transaction's
+    changes are applied to the database atomically.
+\end{itemize}
+
+\textbf{Advantages of OCC:}
+\begin{itemize}
+    \item \textbf{No deadlocks}: There is no blocking on locks, so deadlocks
+    cannot occur.
+    \item \textbf{High concurrency}: Transactions operate freely during the read
+    phase, maximizing parallelism.
+    \item \textbf{Efficient for low contention}: When conflicts are rare, aborts
+    are infrequent and performance is high.
+\end{itemize}
+
+\textbf{Disadvantages of OCC:}
+\begin{itemize}
+    \item \textbf{High abort rates under contention}: In workloads with frequent
+    conflicting accesses, many transactions may be aborted and retried, reducing
+    throughput.
+    \item \textbf{Validation overhead}: The process of checking for conflicts at
+    commit time incurs computational overhead, especially as the number of
+    transactions scales.
+    \item \textbf{Write skew and complex anomalies}: Careful protocol design is
+    required to prevent subtle anomalies like write skew in some OCC
+    implementations.
+\end{itemize}
+
+Overall, OCC is well-suited to environments where transactions are short and
+conflicts are rare, such as many in-memory and read-mostly workloads.
+
+
+\subsubsection{Timestamp-Based Concurrency Control}
+\label{sec:background:timestamp-based-cc}
+
+Timestamp-based protocols use temporal ordering to determine the serialization
+order of transactions, assigning each transaction a unique timestamp that
+determines when it should appear to execute relative to other transactions.
+
+\textbf{Strict Timestamp Ordering (STO)} is a traditional good timestamp-based
+protocol. Each transaction receives a timestamp when it starts, and this
+timestamp determines its position in the serialization order. When accessing a
+data item, the transaction compares its timestamp against the item's read and
+write timestamps. If the access would violate the timestamp ordering rules, the
+transaction immediately aborts.
+
+STO uses both read and write timestamps for each data item, allowing higher
+concurrency than single-timestamp approaches. A transaction can read an item if
+its timestamp is greater than the item's write timestamp, and can write an item
+if its timestamp is greater than the item's read timestamp.
+
+\textbf{Multi-Version Timestamp Ordering (MVTO)} extends timestamp ordering by
+maintaining multiple versions of each data item. This allows read-only
+transactions to access older, consistent snapshots without conflicting with
+concurrent write transactions. MVTO is particularly effective for read-heavy
+workloads where many transactions need to read data while fewer transactions
+perform updates.
+
+However, MVTO introduces significant overhead in terms of storage space (for
+maintaining multiple versions) and garbage collection (for removing old versions
+that are no longer needed).
+
+\textbf{TicToc (Optimistic Timestamp Ordering)} represents an advanced approach
+that combines the benefits of timestamp ordering with optimistic execution.
+Instead of assigning timestamps at transaction start, TicToc dynamically chooses
+a commit timestamp during the validation phase. By selecting a timestamp that is
+guaranteed to be valid with respect to all accessed data, TicToc minimizes the
+time window for potential conflicts, significantly reducing abort rates compared
+to traditional optimistic protocols.
+
+\section{The Evolution of On-Disk Storage Systems}
+\label{sec:background:storage}
+
+The performance characteristics of database systems have been fundamentally
+transformed by advances in storage technology. Understanding this evolution is
+crucial for appreciating why traditional concurrency control approaches may no
+longer be optimal for modern systems.
+
+\subsection{The Shifting Performance Landscape}
+\label{sec:background:performance-shift}
+
+For decades, the primary performance bottleneck in database systems was the high
+latency of mechanical storage devices. Hard disk drives (HDDs) required physical
+movement of read/write heads and rotation of platters to access data, resulting
+in access times measured in milliseconds. This I/O latency was so dominant that
+it masked other system overheads, including the computational cost of
+concurrency control mechanisms.
+
+The introduction of solid-state storage (SSDs) has dramatically changed this
+landscape. Modern NVMe solid-state drives can achieve access times in the tens
+of microseconds—orders of magnitude faster than traditional hard drives. This
+shift has exposed other system components as the new performance bottlenecks,
+particularly the CPU overhead associated with concurrency control protocols.
+
+\subsection{A Performance Review of Storage Media}
+\label{sec:background:storage-media}
+
+Understanding the performance characteristics of different storage technologies
+is essential for designing efficient database systems.
+
+\textbf{Hard Disk Drives (HDDs)} represent the traditional storage technology
+that dominated database systems for decades. Their performance is fundamentally
+limited by mechanical factors:
+\begin{itemize}
+\item \textbf{Seek time}: The time required to move the read/write head to the
+correct track
+\item \textbf{Rotational latency}: The time needed for the desired data to
+rotate under the head
+\end{itemize}
+These mechanical limitations result in access times of several milliseconds and
+very low random I/O performance, typically achieving only 100-200 input/output
+operations per second (IOPS). However, HDDs are still used in many systems
+because of their low cost and high capacity.
+
+\textbf{SATA Solid-State Drives (SSDs)} eliminated mechanical delays but were
+constrained by the legacy SATA III interface, which was designed for
+single-queue spinning disks. The SATA interface caps bandwidth at approximately
+600 MB/s, and the AHCI protocol limits parallelism. Despite these constraints,
+SATA SSDs achieve latencies in the hundreds of microseconds and can support up
+to approximately 100,000 IOPS—a significant improvement over HDDs.
+
+\textbf{NVMe Solid-State Drives (SSDs)} represent the current state-of-the-art,
+designed from the ground up for flash memory. NVMe utilizes the high-bandwidth,
+low-latency PCIe bus and supports massive parallelism with up to 64,000 command
+queues. Modern Gen4 NVMe drives can achieve:
+\begin{itemize}
+\item Throughput exceeding 7 GB/s
+\item Over 1 million IOPS
+\item Latencies in the tens of microseconds
+\end{itemize}
+
+\textbf{CXL-based SSDs} are a new type of SSD that uses the CXL protocol to
+connect to the CPU. They are much faster than NVMe SSDs, with latencies in the
+single-digit microseconds and throughput in the tens of GB/s. CXL-based SSDs
+are still in the early stages of development, but they are already being used
+in some systems.
+\begin{itemize}
+\item Throughput exceeding 16 GB/s
+\item Over 1 million IOPS
+\item Latencies in the single-digit microseconds
+\end{itemize}
+
+
+\subsection{Modern Write-Optimized Data Structures}
+\label{sec:background:write-optimized}
+
+The evolution of storage technology has driven the development of new data
+structures designed to exploit the characteristics of solid-state storage.
+
+\textbf{Log-Structured Merge (LSM) trees} and similar write-optimized structures
+have become increasingly popular for on-disk storage systems. These structures
+are designed to maximize write performance by batching and organizing writes
+efficiently.
+
+A key property of these structures is the \textbf{Query/Insert Asymmetry}: they
+can ingest new data (writes) orders of magnitude faster than they can service
+random queries (reads). For example, SplinterDB, which uses a write-optimized
+structure called a \bets, can perform over 2 million random insertions per
+second but only about 500,000 random queries per second.
+
+This asymmetry is crucial for understanding the performance implications of
+different concurrency control approaches. When timestamp-based protocols store
+timestamps in write-optimized structures, they may need to perform a slow query
+operation to fetch existing timestamps before each fast write operation,
+effectively negating the performance benefits of the write-optimized structure.
+
+\section{Approximate Data Structures}
+\label{sec:background:approximate-data-structures}
+
+Approximate data structures are a class of data structures that provide an
+approximation of the data stored in the data structure. This approximation is
+used to reduce the memory requirements of the data structure.
+
+\subsection{Count-Min Sketch}
+\label{sec:background:count-min-sketch}
 
 The count-min sketch (CMS)~\citep{CormodeMu05} was originally proposed
 as a data structure for providing approximate counts of the occurances
@@ -170,3 +312,163 @@ that
 \]
 where $c_x$ is the true count of $x$ and $n$ is the total number of
 observations added to the CMS.
+
+\section{Motivation: The Case for Approximate Timestamping}
+\label{sec:background:motivation}
+
+The preceding discussions on concurrency control and storage systems converge to
+create a compelling argument for why approximate timestamping represents a
+necessary innovation for modern database systems.
+
+\subsection{The Concurrency Control Bottleneck Revisited}
+\label{sec:background:cc-bottleneck}
+
+With the dramatic reduction in I/O latency provided by NVMe SSDs, the CPU
+overhead inherent in lock-based protocols like 2PL is no longer masked by
+storage delays. This overhead now stands out as a primary factor limiting system
+throughput, making computationally efficient protocols like timestamp ordering
+theoretically more appealing.
+
+The computational efficiency of timestamp-based protocols comes from their
+ability to make concurrency control decisions based on simple timestamp
+comparisons rather than complex lock management. However, as we will see,
+applying these protocols directly to on-disk systems introduces new challenges.
+
+\subsection{The Prohibitive Cost of Naive On-Disk Timestamps}
+\label{sec:background:disk-timestamp-cost}
+
+The critical flaw in applying timestamp ordering directly to on-disk systems
+lies in the storage requirements for timestamps. Storing per-key timestamps on
+disk creates a new, severe I/O bottleneck that can negate the performance
+benefits of timestamp-based protocols.
+
+This problem is particularly acute when combined with the Query/Insert Asymmetry
+of write-optimized data structures. A fast write operation in an LSM-tree
+becomes a slow read-modify-write cycle when timestamps are stored on disk, as
+the system must first perform a slow query to fetch the key's existing
+timestamps before the fast write can proceed. This disproportionately degrades
+write performance and eliminates the primary advantage of write-optimized
+structures.
+
+\subsection{The Impracticality of a Fully In-Memory Solution}
+\label{sec:background:memory-impractical}
+
+The obvious alternative of storing all timestamps in RAM is not viable for
+large-scale database systems. Real-world deployments, such as Facebook's RocksDB
+instances, demonstrate that the memory required for timestamps alone could
+consume a substantial portion of available RAM.
+
+For example, with key-value pairs averaging less than 100 bytes, storing two
+8-byte timestamps per pair would require approximately 16\% of the data size in
+additional memory. However, many production systems operate with RAM-to-disk
+ratios of less than 5\%, sometimes as little as 3\%. Even in scenarios with
+larger key-value pairs or more abundant RAM, timestamps would still consume a
+significant portion of memory that could otherwise be used for caching or other
+purposes.
+
+\subsection{Illustrative Benchmarks: The Promise and the Pitfall}
+\label{sec:background:benchmarks}
+
+To provide concrete, data-driven motivation, we present benchmark results that
+illustrate both the potential and the challenges of timestamp-based concurrency
+control in on-disk systems.
+
+\begin{figure}[!t]
+    \centering
+    \resizebox{\textwidth}{!}{%
+        \begin{tikzpicture}
+            \begin{groupplot}[group style={group size=1 by 1,
+                            /pgf/bar width=3.6pt},
+                    height = 4cm,
+                    width = 9cm,
+                    ybar= 2*\pgflinewidth,
+                    xtick=data,
+                    xticklabels={
+                            \shortstack{High-contended \\ Read-intensive},
+                            \shortstack{High-contended \\ Write-intensive},
+                            \shortstack{Medium-contended \\ Read-intensive},
+                            \shortstack{Medium-contended \\ Write-intensive}
+                        },
+                    ticklabel style={font=\tiny},
+                    ymajorgrids=true,
+                    enlarge x limits = 0.15,
+                    legend columns=1,
+                    legend entries={{\tiny 2PL}, {\tiny OCC}, {\tiny STO-Disk}, {\tiny STO-Memory}, {\tiny STO-\sketchname}, {\tiny TicToc-Disk}, {\tiny TicToc-Memory}, {\tiny TicToc-\sketchname}},
+                    area legend,
+                    legend to name=grouplegend,
+                ]
+
+                % graph [1,1] high
+                \nextgroupplot[YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}]
+                \addplot[2PL-BarStyle] %2PL
+                coordinates {(0,17.477367)
+                        (1,7.801877)
+                        (2,44.415733)
+                        (3,98.0184)};
+                \addplot[KR-OCC-BarStyle] %KR-OCC
+                coordinates {(0,16.476967)
+                        (1,16.502733)
+                        (2,12.110933)
+                        (3,9.95364)};
+                \addplot[STO-Disk-BarStyle] %STO-Disk
+                coordinates {(0,30.2847)
+                        (1,6.549243)
+                        (2,41.467833)
+                        (3,47.448567)};
+                \addplot[STO-Memory-BarStyle] %STO-Memory
+                coordinates {(0,38.878867)
+                        (1,11.258033)
+                        (2,48.277933)
+                        (3,99.339033)};
+                \addplot[STO-FPSketch-BarStyle] %STO-FPSketch
+                coordinates {(0,38.5077)
+                        (1,11.6077)
+                        (2,46.990067)
+                        (3,90.8817)};
+                \addplot[TicToc-Disk-BarStyle] %TicToc-Disk
+                coordinates {(0,49.263467)
+                        (1,8.097707)
+                        (2,29.168467)
+                        (3,38.399333)};
+                \addplot[TicToc-Memory-BarStyle] %TicToc-Memory
+                coordinates {(0,140.330333)
+                        (1,59.562333)
+                        (2,48.216233)
+                        (3,100.82)};
+                \addplot[TicToc-FPSketch-BarStyle] %TicToc-FPSketch
+                coordinates {(0,115.33)
+                        (1,47.927533)
+                        (2,45.608067)
+                        (3,101.462)};
+                \coordinate (top) at (rel axis cs:0,1);% coordinate at top of the first plot
+                \coordinate (bot) at (rel axis cs:1,0);% coordinate at bottom of the last plot
+            \end{groupplot}
+            \coordinate (c) at ($(top)!.5!(bot)$);
+
+            \node[right=1cm, yshift=-5pt] at (c -| current bounding box.east) {\ref{grouplegend}};
+        \end{tikzpicture}
+    }
+    \caption[Highlights of goodputs for YCSB workloads]{Performance comparison of various concurrency control mechanisms across different YCSB workloads, demonstrating the promise of in-memory timestamp ordering and the pitfalls of disk-based approaches.}
+    \label{fig:motivation}
+\end{figure}
+
+\paragraph{The Promise (TicToc-Memory):} When timestamps are stored in an idealized
+in-memory hash table, advanced protocols like TicToc dramatically outperform
+traditional 2PL and OCC. TicToc-Memory achieves the highest throughput across
+all workloads, with particularly impressive performance in high-contention
+scenarios, demonstrating the immense potential of timestamp-based schemes.
+
+\paragraph{The Pitfall (TicToc-Disk):} When these same timestamps are stored on
+disk, the I/O overhead becomes so crippling that performance collapses, often
+falling far below that of 2PL and OCC, especially in write-intensive workloads.
+The performance gap between Memory and Disk variants is particularly pronounced
+for write-intensive workloads, where the Query/Insert Asymmetry has the greatest
+impact.
+
+\paragraph{The Opportunity:} This stark contrast between the in-memory and on-disk
+variants perfectly frames the research problem. It establishes a clear need for
+a solution that can deliver the high performance of the in-memory approach
+without its prohibitive memory cost. The results from STO-\sketchname and
+TicToc-\sketchname, which use our proposed approximate timestamping technique,
+demonstrate that such a solution is achievable, setting the stage for the
+detailed presentation of our approach in the following chapters.

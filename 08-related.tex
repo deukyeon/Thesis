@@ -1,0 +1,177 @@
+\section{Forgetful STO}
+
+Bernstein, et al.~\cite{bernstein1987concurrency} attempted to reduce the memory
+footprint of STO by proposing a timestamp purge mechanism. The approach assumes
+that timestamps are derived from a reasonably precise real-time clock and that
+transactions are short-lived. Their approach involves selecting a threshold
+timestamp ($\tau - \delta$) at $\tau$, purging keys with timestamps below this
+threshold from memory, tagging these keys with the threshold timestamp, and
+aborting any transactions whose timestamp is below the threshold. Effectively,
+this overapproximates the purged keys' timestamps to the threshold timestamp.
+While Bernstein, et al.~argued that this was safe to do, they did not specify
+any policy for how to select the threshold timestamp that determines which keys
+get evicted. Such a policy is crucial to balancing memory usage and abort rate.
+They did not implement or evaluate their scheme.
+
+Bernstein's approach does not meet the requirements of an approximate timestamp
+storage system defined in \Cref{sec:requirements}; it sometimes approximates
+timestamps of keys in use by on-going transactions, aborting those transactions.
+This works with STO and MVTO but, surprisingly, aborting the transactions of the
+affected keys is not sufficient to guarantee serializability in TicToc!
+
+Below are two examples that illustrate this issue based on TicToc's validation
+algorithm~\cite{yu2016tictoc}.
+
+\paragraph{Example 1:} Consider these transactions:
+
+\begin{tabular}{|l|l|l|l|}
+    \hline
+    \textbf{Step} & \textbf{TID} & \textbf{Operation}        & \textbf{Note}                           \\
+    \hline
+    1             & $T_1$        & read($k_1$)               & $k_1.rts=10$, $k_1.wts=10$              \\
+    2             & $T_2$        & write($k_1$), lock($k_1$) & $commit\_ts=11$                         \\
+    3             & $T_1$        & write($k_2$), lock($k_2$) & $commit\_ts=12$                         \\
+    4             & $T_1$        & abort                     & $k_1.tuple.rts \leq commit\_ts$ $\land$
+    isLocked($k_1$) $\land$ $k_1$ not in $W$                                                           \\
+    5             & $T_2$        & commit                    &                                         \\
+    \hline
+\end{tabular}
+
+Initially, $k_1$ has $k_1.tuple.rts=10$ and $k_1.tuple.wts=10$ in the database.
+Here, $k_1.tuple.*$ refers to database values, while $k_1.*$ refers to
+transaction-local values. Let's examine each step in detail:
+
+\begin{enumerate}
+    \item $T_1$ reads $k_1$, recording $k_1.rts=10$, $k_1.wts=10$.
+    \item $T_2$ writes to $k_1$, locks it, and sets $commit\_ts=11$
+          during validation.
+    \item $T_1$ writes to $k_2$, locks it, and sets $commit\_ts=12$
+          during validation.
+    \item $T_1$ aborts because another transaction ($T_2$) is
+          validating $k_1$. The abort condition is met when:
+          \begin{itemize}
+              \item $k_1.tuple.rts=10 \leq commit\_ts=12$ (true)
+              \item $k_1$ is locked (true)
+              \item $k_1$ is not in $T_1$'s write set (true)
+          \end{itemize}
+    \item $T_2$ commits with $commit\_ts=11$.
+\end{enumerate}
+
+TicToc maintains serializability by aborting $T_1$, which would otherwise read
+outdated data.
+
+However, if timestamp purging occurs during validation, serializability can be
+violated. Suppose keys with timestamps less than 20 are purged before Step 4,
+setting $k_1.tuple.rts$ to 20. (This can happen because TicToc processes
+transactions based on keys accessed by them in a lazy and distributed manner
+while the purge system would keep track of the largest timestamp of all keys and
+pick 20 as a safe threshold timestamp.) Since $T_1$ already set $commit\_ts=12$,
+the validation check will now fail ($k_1.tuple.rts=20 > commit\_ts=12$),
+allowing $T_1$ to commit with $commit\_ts=12$. Then $T_2$ commits with
+$commit\_ts=11$. This violates serializability because $T_1$ reads an old
+version but is serialized after $T_2$.
+
+\paragraph{Example 2:} Consider these transactions:
+
+\begin{tabular}{|l|l|l|l|}
+    \hline
+    \textbf{Step} & \textbf{TID} & \textbf{Operation}        & \textbf{Note}                       \\
+    \hline
+    1             & $T_1$        & write($k_1$), lock($k_1$) & $k_1.tuple.rts=10$                  \\
+    2             & $T_2$        & read($k_1$)               & $k_1.rts=10$, $k_1.wts=10$          \\
+    3             & $T_2$        & write($k_1$)              &                                     \\
+    4             & $T_1$        & commit                    & $commit\_ts=11$, $k_1.tuple.wts=11$ \\
+    5             & $T_2$        & abort                     & $k_1.wts \neq k_1.tuple.wts$        \\
+    \hline
+\end{tabular}
+
+Initially, $k_1$ has $k_1.tuple.rts=10$ and $k_1.tuple.wts=10$.
+Here is an explanation of each step:
+
+\begin{enumerate}
+    \item $T_1$ writes to $k_1$.
+    \item $T_2$ reads $k_1$, recording $k_1.rts=10$, $k_1.wts=10$.
+    \item $T_2$ writes to $k_1$. ($commit\_ts$ will be 11.)
+    \item $T_1$ commits with $commit\_ts=11$ and updates $k_1.tuple.wts=11$.
+    \item $T_2$ aborts because it detects a version mismatch:
+          \begin{itemize}
+              \item $k_1.tuple.wts=11 \neq k_1.wts=10$ (true)
+          \end{itemize}
+\end{enumerate}
+
+$T_2$ correctly aborts after detecting a new version through the updated write
+timestamp. However, if timestamp purging happens after Step 1, purging keys with
+timestamps below 11 and updating both $k_1.tuple.rts$ and $k_1.tuple.wts$ to 11,
+serializability is broken. In Step 2, $T_2$ would read $k_1.rts=11$,
+$k_1.wts=11$. When $T_1$ commits with $commit\_ts=11$, $T_2$ proceeds to commit
+with $commit\_ts=12$ (calculated as $k_1.tuple.rts + 1$). Since
+$k_1.tuple.wts=11$ matches $k_1.wts=11$, $T_2$ cannot detect the version change
+and incorrectly commits with $commit\_ts=12$. This breaks serializability
+because $T_2$ reads a stale version yet is serialized after $T_1$.
+
+Therefore, Bernstein's scheme itself without tracking in-use keys is
+incompatible with TicToc because accurate timestamp data is critical during
+validation, and TicToc relies on decentralized, fine-grained validation.
+
+
+\section{On-disk concurrency control}
+
+Conventional concurrency control mechanisms, such as two-phase locking
+(2PL) and optimistic concurrency control (OCC), are widely employed by
+both academic and commercial disk-based
+databases~\cite{rocksdb,googlef1,leveldb,asterixdb,cstore,berkeleydb,couchbase,asuresql}.
+For example, RocksDB supports both pessimistic and optimistic
+concurrency controls through 2PL and OCC, while Google F1 (Spanner)
+uses timestamp ordering with locks and OCC. In contrast, there has
+been significant research on concurrency control mechanisms tailored
+for in-memory databases~\cite{yu2016tictoc}. \sketchname brings modern
+concurrency control algorithms to disk-based transactional databases,
+including those originally designed for in-memory contexts, instead of
+relying solely on classical methods.
+
+\section{Acceleration of timestamp accesses}
+
+Many disk-based RDBMSs (e.g., Postgres and MySQL) and write-optimized
+systems (e.g., RocksDB) embed timestamps in their tuple structures,
+thereby avoiding extra I/O once the relevant pages are in memory.
+Recent studies on Bf-Tree~\cite{DBLP:journals/pvldb/HaoC24} and
+Umbra~\cite{umbra-cc} highlight the critical role of efficient page
+cache management in boosting performance, as on-disk timestamps can be
+fetched quickly once loaded. By contrast, our approach decouples
+timestamps from on-disk tuple structures and stores them in FPSketch.
+This design not only accelerates timestamp operations of CCs but also
+offers greater opportunities for high cache utilization of records on
+disk. We believe that transactional systems leveraging FPSketch can
+attain even stronger performance gains when paired with robust page
+cache management.
+
+\section{Approximation and summarization in databases}
+
+Numerous databases approximate or summarize transaction metadata in
+order to optimize I/O or reduce memory usage.  For example, PostgreSQL
+maintains hintbits~\cite{postgres-visibility} in each tuple,
+indicating whether the transction that added that tuple has committed,
+enabling it to avoid a query to its commit log.  AWS Aurora maintains
+Min Read Point LSNs~\cite{VerbitskiGuSa17}, which conservatively
+indicate the oldest LSN that might still be read, enabling garbage
+collection of pages with older LSNs.  And many MVCC schemes use high
+watermarks~\cite{BottcherLeNe19} to determine which old versions can
+be garbage collected.
+
+We believe \sketchname is fundamentally different from prior work
+because, in all these prior schemes, approximations and summations are
+used as fast paths (e.g. hintbits) or to drive garbage collection.
+However, they are not used as part of the CC mechanism itself.
+
+\section{Approximation with sketches}
+
+In networking, FlexSwitch~\cite{flexswitch} uses an approximation
+technique called min-timestamp to manage packet routing through
+network switches. However, min-timestamp operates by overwriting
+conflicting timestamps without guaranteeing a lower bound for these
+values, allowing overwrites to occur at any time by any entity. In
+contrast, \sketchname ensures monotonically increasing timestamps.
+Additionally, it provides high-resolution timestamps that can be
+shared among active transactions. This not only maintains correctness
+in timestamp-based concurrency control mechanisms but also optimizes
+space utilization.

@@ -5,7 +5,7 @@
 
 
 %%%% Fill out all these macros
-\newcommand{\thesisTitle}{Approximate Timestamp Storage for Efficient Concurrency Control in On-Disk Data Systems}
+\newcommand{\thesisTitle}{Approximate Timestamping for High-Performance Transaction Processing Across the Storage Spectrum}
 \newcommand{\authorName}{Deukyeon Hwang}
 \newcommand{\advisor}{Simon Peter}
 \newcommand{\advisorTitle}{Associate Professor} % assistant, associate prof?
@@ -132,21 +132,24 @@
 \chapter {Introduction}
 \input{04-intro}
 
-\chapter{Background}
+\chapter{Background and Motivation}
 \input{05-background}
 
-\chapter{Approximate Timestamp Storage for On-disk Concurrency Control} % change to project name
+\chapter{\sketchname: Approximate Timestamp Storage for Timestamp-Based Concurrency Control}
 \label{chapter:three}
-\input{06-appxstorage}
+\input{06-fpsketch}
 
-\chapter{Extended Study with Various Storage Media} % change to project name
+\chapter{Analytical Study of the \sketchname Approach Across the Storage Spectrum}
 \label{chapter:four}
-\input{07-extended}
+\input{07-analytical}
 
-%...add as many projects as you need (typically 3-4)
+\chapter{Related Work}
+\label{chapter:five}
+\input{08-related}
 
-\chapter{Conclusion}
-\input{08-conclusion}
+\chapter{Conclusion and Future Work}
+\label{chapter:six}
+\input{09-conclusion}
 
 \bibliography{main.bib}
 \bibliographystyle{acl_natbib}

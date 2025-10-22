@@ -1,167 +1,255 @@
+\section{The Enduring Challenge of Concurrency Control in On-Disk Databases} 
 
-Large key-value stores are the basis of many applications, such as
-databases and file systems. Many such applications must support not
-only single-key operations, but must also make sequences of operations
-atomic. As a result, many state-of-the-art key-value stores provide
-transactional
-semantics~\citep{rocksdb,cassandra,mongodb,couchbase,redis,berkeleydb,lmdb}.
+Achieving fast transaction processing in databases that store their data on disk
+is difficult because there is a basic conflict between keeping data consistent
+and getting high performance. To handle multiple transactions safely, databases
+use Concurrency Control (CC) methods that make sure the results are as if the
+transactions happened one after another. For many years, choosing the right CC
+method has forced system designers to accept a tough trade-off.
 
-\emph{Concurrency control (CC) mechanisms} govern how transactions
-interact with each other and ensure consistency is maintained in the
-kv-store. The choice of the CC mechanism can highly influence the
-performance of the overall system, as synchronization and memory
-overheads, as well as the abort rate, all depend upon it. Therefore,
-significant research effort has gone into developing good
-concurrency-control
-mechanisms~\citep{yu2016tictoc,wolf2015evaluation,tu13silo,plor,polaris,2PLFS,chardonnay,bamboo}.
+On one side, traditional lock-based methods like Two-Phase Locking (2PL) are
+common. These methods do not need much memory because locks are only needed for
+the data items being used at any moment. However, lock-based methods can make
+the CPU do a lot of extra work, because transactions need to get and hold locks,
+sometimes for a long time. This holding of locks can force transactions to wait
+for each other, which reduces how many can happen at the same time and causes
+performance problems, especially when there are many transactions.
 
-An ideal CC mechanism would have low CPU overhead, low space overhead,
-and low abort rate. Achieving all three has been challenging. For
-example, two-phase locking (2PL) makes use of locks for items accessed
-by transactions. This can be memory-efficient; locks are needed only
-for keys accessed by ongoing transactions, and thus the memory
-footprint is proportional to the total size of the active
-transactions. However, holding all these locks for
-the entire duration of the transaction can limit throughput in
-high-concurrency scenarios.
+On the other side are timestamp-based methods, such as Strict Timestamp Ordering
+(STO), Multi-Version Timestamp Ordering (MVTO), and newer types like TicToc.
+These use timestamps to decide the order of transactions, often allowing for
+more concurrency and fewer aborted transactions. But in databases where data is
+stored on disk, timestamp-based methods come with a big drawback: they create a
+lot of extra storage and I/O overhead. They have to keep track of read and write
+timestamps for every row of data, and if these timestamps are kept on disk,
+every operation on the data could make the system do more slow I/O operations.
+For example, in a basic STO system, just reading a data item means also writing
+its read timestamp back to disk. Updating a row also requires reading its old
+timestamps before doing anything. This extra metadata overhead turns simple,
+fast operations into slower ones that involve both reading and writing, reducing
+the system's performance.
 
-In contrast, timestamp-based schemes, such as Strict Timestamp
-Ordering (STO)~\citep{bernstein1987concurrency}, Multi-Version
-Timestamp Ordering (MVTO)~\citep{reed1983mvto}, and
-TicToc~\citep{yu2016tictoc}, can be extremely effective at avoiding CPU
-bottlenecks and reducing abort rates. Unfortunately, timestamp-based
-CC mechanisms typically have a larger memory footprint than, e.g. 2PL,
-because they maintain timestamps for each tuple in the database,
-whereas 2PL needs locks only for keys in active transactions.
-Moreover, timestamps are typically embedded within the database
-tuples, which can lead to extra I/O in disk-based databases.  For
-example, in STO, every tuple access must read the old timestamps and
-write updated timestamps to the database.  This means that reading a
-tuple also requires writing that tuple, and blindly overwriting a
-tuple requires reading the old value first. As a result, a CC
-mechanism that maintains per-tuple metadata can incur high I/O cost
-and substantially reduce throughput in a disk-based database.
-Consequently, timestamp-based CC mechanisms are rarely used in on-disk
-databases.
+One might think that modern, fast storage devices like NVMe solid-state drives
+(SSDs) would solve this problem, but they do not. NVMe SSDs are much faster than
+older drives, but they actually make this trade-off more obvious. With such fast
+storage, the delays caused by lock-based protocols become more pronounced, since
+the system is often waiting for the CPU rather than the storage. At the same
+time, if timestamp metadata is kept on disk, the SSDs' high speed is wasted
+dealing with many small metadata I/O operations. As a result, no matter which
+method is chosen—CPU-heavy locks or I/O-heavy timestamps—the system ends up
+limited by either CPU or storage. This makes it hard for designers to fully
+use the power of new hardware.
 
-This leaves disk-based databases with a vexing trade-off.  2PL has
-small memory footprint but high CPU overhead, whereas timestamp based
-mechanisms have large storage and I/O overheads.  Unfortunately, CPU
-overheads cannot be ignored in modern disk-based databases based on
-fast SSDs and modern data structures, such as LSM
-trees~\citep{OneillChGaOn96} and \bets~\citep{BrodalFa03}.
 
-\paragraph{Our contributions.}
-We show how to overcome the memory footprint overhead of
-timestamp-based CC mechanisms, unlocking the ability to use them in
-on-disk databases. As a result, we obtain new CC mechanisms that offer
-up to 14$\times$ greater goodput than commonly used CCs, such as 2PL
-and OCC. Specifically, we:
+\section{\sketchname: A New Approach for Timestamp-Based Concurrency Control on Disk}
+
+The first main contribution of this dissertation is a new approach for efficient
+timestamp-based concurrency control in disk-based databases. This approach is
+called \sketchname. The main idea behind \sketchname is to decompose traditional
+timestamp-based concurrency control mechanisms into two components: (1) the CC
+protocol itself (such as STO or TicToc), and (2) an approximate storage system
+for timestamps, which is called \sketchname.
+
+This decomposition helps because, in reality, only a small fraction of the
+database keys are being accessed by currently active transactions at any given
+time. For these active keys, the system must store and update their timestamps
+exactly. However, for other keys that are not being accessed, keeping an exact
+timestamp is not necessary. For such keys, it is correct and safe to store only
+an upper bound on their timestamp. If the upper bound is too high, this may
+cause a harmless extra transaction abort, but it will not violate database
+correctness.
+
+Based on these observations, \sketchname is designed as a memory-efficient and
+fast data structure, with two key components:
+
+\begin{enumerate}
+    \item \textbf{A Hash Table (Foveated Region):} This part holds the exact
+    timestamps for the keys that are currently active in transactions. A simple
+    counting mechanism ensures that as long as a key is needed by a transaction,
+    its timestamp remains exact.
+    \item \textbf{A Sketch (Peripheral Region):} This component, inspired by
+    structures like the Count-Min Sketch, keeps approximate upper bounds for
+    inactive keys. When a key becomes inactive (its reference count falls to
+    zero), its last timestamp is moved from the hash table to this sketch.
+\end{enumerate}
+
+Thanks to this hybrid structure, many slow and costly disk accesses for
+timestamps are replaced by very fast memory operations. In effect, \sketchname
+gives nearly the same performance as if every timestamp could be kept in fast
+memory, but it needs much less RAM (for example, only 32KiB for an 80GB database
+in experiments).
+
+With the problem of metadata I/O removed, the high-performance concurrency
+control protocols can be adapted for disk-based databases. Experiments with the
+SplinterDB key-value store demonstrate that \sketchname has a large impact:
+using \sketchname, advanced protocols like TicToc can reach speeds up to 14
+times faster than traditional 2PL and OCC, and up to 5.9 times faster than
+standard disk-based timestamp methods on some workloads.
+
+\section{The Research Question: Testing the Broad Applicability of the \sketchname Approach}
+
+While \sketchname works well on modern NVMe SSDs, this result leads to a
+deeper research question: Is using approximate, in-memory metadata always
+useful, or is its benefit only clear for fast storage devices like NVMe SSDs?
+Separating the concurrency control logic from storage performance seems
+powerful, but this has not been evaluated across all types of storage, from
+older, slower devices to the most modern memory-like storage.
+
+The second main contribution of this dissertation addresses this issue directly. It
+conducts a thorough theoretical and analytical study of the \sketchname approach
+on a variety of storage devices. The analysis explores how useful the approach
+remains when the performance gap between memory and disk access changes
+dramatically. The goal is to determine if the key idea behind \sketchname is
+broadly reliable and future-proof, or if it is mainly a solution for today's
+specific hardware.
+
+\section{A Taxonomy of Storage Performance: From Milliseconds to Nanoseconds}
+
+To make the analysis concrete, it is first necessary to summarize the important
+technical differences among the storage devices considered. These differences
+are not only in their performance measurements, but also in how each device's
+architecture interacts with the database and concurrency control systems.
+
 \begin{itemize}
-  \item Show how to decompose timestamp-based CC mechanisms into two
-        parts: a timestamp storage system and a CC protocol.
-  \item Define \defn{approximate timestamp storage}, which identifies
-        exactly when and how the storage system can approximate timestamps
-        without affecting the correctness of the CC protocol.
-  \item Implement a general approximate timestamp-storage data
-        structure, which we call \sketchname.
-  \item Combine \sketchname with three CC protocols: STO, MVTO, and
-        TicToc.
-  \item Evaluate the resulting CC mechanisms in SplinterDB, a
-        state-of-the-art kv-store, and compare them against traditional CC
-        mechanisms, such as 2PL and OCC.
-  \item Show that \sketchname enables modern timestamp-based CC
-        mechanisms, such as TicToc, to offer up to 14$\times$ greater goodput
-        than 2PL and OCC in an on-disk database while maintaining a small
-        memory footprint.
+    \item \textbf{Hard Disk Drives (HDDs):} HDDs are mechanical devices limited
+    by moving parts, such as spinning platters and moving arms. As a result,
+    their access times are dominated by seek and rotation delays, leading to
+    average latencies in the 5-20 millisecond range. Their performance for
+    random I/O is poor, typically capable of only 100-200 IOPS.
+    \item \textbf{SATA SSDs:} These solid-state drives are much faster than HDDs
+    since they have no moving parts. However, common SATA SSDs are limited by
+    the older SATA interface and AHCI protocol, which were designed for spinning
+    disks and do not take full advantage of flash memory's capability to handle
+    many requests in parallel. This puts their latency in the 100-500
+    microsecond range, and throughput is about 600 MB/s.
+    \item \textbf{NVMe SSDs:} The NVMe standard connects SSDs directly to the
+    CPU using the PCIe bus and supports high degrees of parallelism (up to
+    64,000 command queues), leading to another big increase in speed. Newer NVMe
+    SSDs can achieve latencies as low as 20-100 microseconds, random read IOPS
+    above 1 million, and sequential throughput over 7,000 MB/s. This was the
+    platform where \sketchname was first tested.
+    \item \textbf{CXL-based SSDs:} Compute Express Link (CXL) is the newest type
+    of storage that tries to remove the distinction between memory and storage.
+    These devices connect through PCIe but use the CXL.mem protocol, meaning the
+    CPU can read their contents through direct memory instructions, like main
+    memory. This eliminates traditional storage software overhead and the device
+    looks like a memory-only node. Access is not as fast as regular DRAM, but
+    much faster than NVMe SSDs, with latency in the single-digit microsecond
+    range.
 \end{itemize}
 
-The key observation is that the timestamp storage system must provide
-precise timestamps only of keys in use by on-going transactions.  For
-all other keys, it can provide merely upper bounds on their
-timestamps.  Thus we can use a hashtable to store timestamps of in-use
-keys and a sketch data structure for all the other keys in the
-database, greatly reducing the memory required to store timestamps.
-The system can then use any eviction policy for moving inactive keys
-from the hashtable to the sketch.  We call this hashtable-sketch combo
-an \sketchname.  Interestingly, both components are required for
-correctness. See \Cref{sec:requirements}.
+These major differences are shown in \Cref{tab:storage-characteristics}, which
+provides the performance data used in the analyses that follow.
 
-The approximations made by the sketch will sometimes induce aborts by
-the CC protocol.  Thus the goal is to size the hashtable and the
-sketch to achieve both low memory usage and low abort rate. There are
-two ways to control this trade-off: the hashtable eviction policy and
-the size of the sketch. The eviction policy governs how precisely the
-storage system remembers timestamps of recently accessed keys.  For
-example, an aggressive eviction policy could evict keys as soon as
-they become inactive, minimizing memory used by the hashtable but
-possibly increasing abort rates due to approximations in the sketch.
-A lazy policy, such as LRU or CLOCK, would allow the hashtable to
-store precise timestamps of recently active keys, increasing memory
-usage from the hashtable but potentially reducing the abort rate.
-Similarly, we can trade off memory and abort rate by adjusting the
-size of the sketch.  A larger sketch will have better approximations
-and hence induce fewer aborts.
+\begin{table}[h]
+\centering
+\caption{Comparative Performance Characteristics of Storage Media}
+\label{tab:storage-characteristics}
+\begin{tabular}{lcccc}
+\toprule
+Performance Metric & HDD & SATA SSD & NVMe SSD & CXL-based SSD \\
+\midrule
+Latency & 5-20 milliseconds (ms) & 100-500 microseconds (µs) & 20-100 microseconds (µs) & 1-10 microseconds (µs) \\
+Random Read IOPS & ~100-200 & ~100,000 & ~1,000,000 - ~1,500,000 & N/A \\
+\midrule
+Sequential Throughput & ~150-250 MB/s & ~550 MB/s & ~7,000 MB/s & ~16 GB/s (PCIe 5.0 x4) \\
+\midrule
+Interface/Protocol & SATA / ATA & SATA / AHCI & PCIe / NVMe & PCIe / CXL.mem \\
+\midrule
+Primary Bottleneck & Mechanical (Seek/Rotation) & Interface/Protocol & CPU / Concurrency & Interconnect / Memory Controller \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-\paragraph{Implementation and evaluation.}
-We implemented two \sketchname variants that represent extremal points
-in the design-space described above.  In \fsketchname, we use the
-smallest possible sketch---just a single counter that upper bounds the
-timestamps of all keys not in the hashtable---and evict keys from the
-hash table lazily using CLOCK.  In \psketchname, we use the smallest
-possible hashtable---we evict keys as soon as they become
-inactive---and use a variant of count-min sketch~\citep{CormodeMu05}
-for evicted keys. In our experiments, both schemes use the same total
-amount of memory.
+\section{Analytical Study of the \sketchname Approach Across the Storage Spectrum}
 
-We compose \sketchname with three timestamp-based mechanisms; the
-well-known Strict Timestamp Ordering
-(STO)~\citep{bernstein1987concurrency} mechanism, Multi-Version
-Timestamp Ordering (MVTO)~\citep{reed1983mvto}, a timestamp ordering
-multi-version concurrency control (MVCC) variant, and a newer
-optimistic CC mechanism called TicToc~\citep{yu2016tictoc}.
+The second main contribution of this dissertation is a careful study of how the
+\sketchname approach behaves and what effects it has in environments with very
+different storage characteristics.
 
-We also implemented disk-based and RAM-based exact timestamp storage
-systems as baselines. The disk-based timestamp storage scheme enables
-us to measure the I/O savings from approximation. The RAM-based scheme
-is not practical for large databases, but it enables us to measure the
-impact of approximation on abort rate. We benchmark the resulting CC
-mechanisms on SplinterDB~\citep{splinterdb}, a highly concurrent
-write-optimized kv-store for modern storage.
+\subsection{Slow Storage Environments}
 
-Our main result is that approximate timestamp storage can deliver substantial performance gains by enabling us to use advanced concurrency-control mechanisms, such as TicToc and MVTO, in on-disk databases.
-For example, in our experiments, TicToc with approximate timestamp
-storage (both \fsketchname and \psketchname) outperformed 2PL and OCC
-by up to 14$\times$ on some workloads, and was never slower. In fact,
-TicToc with approximate timestamp storage was the fastest (or tied for
-fastest) of all the concurrency-control mechanisms in all but one of
-our benchmarks, where MVTO with approximate timestamp storage was the
-fastest.
+First, let us consider using \sketchname in HDDs and SATA SSDs. In these
+systems, each random I/O operation is extremely slow, measured in milliseconds
+for HDDs and hundreds of microseconds for SATA SSDs. A simple approach that
+stores timestamps on disk would therefore be severely limited by these delays,
+making high-performance concurrency control protocols impractical.
 
-Second, approximate timestamp storage is essential to achieving the
-performance of modern concurrency-control mechanisms in on-disk
-databases.  For example, TicToc with approximate timestamp storage was
-up to 5.9$\times$ faster than TicToc with exact timestamps stored on
-disk. STO and MVTO showed 1.8$\times$ and over 160$\times$ between
-approximate and disk-based timestamp storage, respectively.
+\subsection{Fast Storage Environments}
 
-Furthermore, for STO and TicToc, using \sketchname of only 32KiB
-yields nearly the same performance as an idealized, \emph{in-memory},
-implementation that keeps, in RAM, timestamps for every record in the
-database (see \Cref{fig:motivation}).
+Second, we look at new, faster storage based on CXL-based SSDs. In these
+systems, the basic performance landscape changes. With a CXL-based SSD, there is
+no more classic I/O stack; instead, the CPU can read and write directly to a
+memory region that is actually on the CXL-based SSD, appearing as a remote NUMA
+node. Although much faster than block devices, CXL-based SSD access is still a
+little slower than local DRAM, with delays in the low microsecond range. In this
+scenario, the purpose of \sketchname also shifts. Here, it is not mainly about
+avoiding slow disk I/O, but about keeping important metadata in the fast local
+memory. If timestamps were stored on the CXL-based SSD itself, every single
+access—even simple protocols like TicToc need many such accesses would have to
+wait several microseconds for remote memory communication. Thus, even a small
+delay repeated many times can significantly reduce performance.
 
-Finally, we find that, although both \fsketchname and \psketchname
-substantially outperform other CC mechanisms, \psketchname offers more
-robust performance.  In particular, our \psketchname significantly
-outperforms \fsketchname on several workloads and is never
-significantly slower.
+\sketchname solves this problem by acting as an application-specific cache for
+concurrency metadata, with its hash table storing the exact timestamps for
+active keys close to the CPU in local DRAM. This ensures frequently used
+metadata is always available with the lowest possible delay. Thus, \sketchname
+avoids new performance bottlenecks that could arise from remote memory access,
+allowing the system to be limited only by the core protocol and the CPU.
 
-% This chapter typically includes: 
-% \begin{itemize}
-%     \item a brief overview
-%     \item a background section
-%     \item a challenges section
-%     \item a section about your approach
-%     \item a section (or subsection in the approach section) giving a dissertation outline (a roadmap of the rest of the thesis)
-% \end{itemize}
-% Alternatively: you could choose to remove the background section and make a separate background chapter directly following this introduction chapter.
+This analysis shows that \sketchname is more than just a new data structure; it
+is, in fact, a flexible method for managing metadata in a tiered memory/storage
+world. Its value becomes even greater as the distinction between memory and
+storage fades.
+
+\section{Synthesis and Central Thesis Statement}
+
+From these studies—ranging from traditional HDDs to advanced CXL-based SSDs—the
+conclusion emerges that the performance gain from \sketchname is directly
+linked to the difference in delay and overhead between accessing local memory
+and accessing storage. This can be understood as a general rule: as long as
+there is a major gap between fast memory and slower data storage, \sketchname is
+an effective and durable solution for high-frequency tasks like concurrency
+metadata management. 
+
+The main thesis of this dissertation is thus: Approximate, in-memory metadata
+management is a universally useful and future-ready approach for fast
+transaction processing. Its advantages do not depend on any single storage
+technology; instead, they scale with the basic, long-lasting gap between local
+computation and remote storage access, allowing advanced concurrency control
+protocols to reach nearly optimal performance across all storage types. First, I
+demonstrate this by designing, building, and evaluating the \sketchname system
+using modern NVMe SSDs. Then, I show its wider value and ongoing relevance with
+an analytical study of storage devices from slow, mechanical drives to future
+high-speed, memory-like storage.
+
+\section{Dissertation Outline}
+The rest of this dissertation is organized as follows:
+\begin{description}[leftmargin=2.5em, labelindent=0em, style=nextline]
+    \item[Chapter 2: Background and Motivation] 
+    This chapter gives a full background on timestamp-based concurrency control
+    protocols, modern storage technologies, and the performance features that
+    inspire this work.
+
+    \item[Chapter 3: \sketchname]
+    This chapter explains the design and construction of \sketchname, which is
+    the first main contribution. It describes its method for approximate
+    timestamp storage, its hybrid hash table and sketch data structure, and how
+    it works with STO, MVTO, and TicToc protocols. It also provides a thorough
+    experimental evaluation of \sketchname\ on a state-of-the-art NVMe SSD,
+    comparing its performance to traditional concurrency control methods and
+    ideal baselines across various workloads.
+
+    \item[Chapter 4: Analytical Study of the \sketchname Approach Across the Storage Spectrum]
+    This chapter offers the second primary contribution: a detailed analysis of
+    the \sketchname\ paradigm as used with legacy (HDD, SATA SSD) and new
+    (CXL-SSD) storage, examining its impact and evolving role.
+
+    \item[Chapter 5: Related Work]
+    This chapter reviews related research on disk-based concurrency control,
+    approximate data structures in databases, and tiered memory management.
+
+    \item[Chapter 6: Conclusion and Future Work]
+    This chapter summarizes the dissertation's contributions, restates the main
+    thesis, and outlines possible directions for future study.
+\end{description}
