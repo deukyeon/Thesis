@@ -33,6 +33,23 @@ SSD allows us to compare results fairly with NVMe SSD and other faster storage.
 In contrast, the HDD experiments show how \sketchname performs on a real hard
 disk, helping us understand its behavior in truly slow storage situations.
 
+This section evaluates \sketchname on slow storage media, revealing the following:
+\begin{itemize}
+    \item \sketchname variants achieve significant performance improvements across
+    both SATA SSD and HDD, with up to 569\% and 519\% higher goodput than Disk
+    variants in write-intensive, high-contention workloads on SATA SSD and HDD,
+    respectively. TicToc-\psketchname outperforms 2PL and KR-OCC by up to 589\% and
+    152\% on SATA SSD, and achieves 1.8$\times$ faster than KR-OCC on HDD.
+    
+    \item \sketchname demonstrates effectiveness across diverse workload types,
+    with up to 60\% higher goodput than Disk variants and up to 24\% and 59\% over
+    2PL and KR-OCC in mixed-transaction workloads. For medium-contention workloads,
+    \sketchname improves goodput by up to 19\% and 121\% for read-intensive and
+    write-intensive workloads on HDD. In TPC-C with 4 warehouses,
+    STO-\psketchname and TicToc-\psketchname achieve up to 1.25$\times$ and
+    1.18$\times$ better goodput than 2PL/KR-OCC on HDD, demonstrating consistent
+    benefits across synthetic and realistic benchmarks.
+\end{itemize}
 
 \subsection{SATA SSD}
 
@@ -954,6 +971,35 @@ itself more visible relative to storage access costs. These results provide
 insights into how \sketchname variants scale as storage technologies continue to 
 evolve toward lower latencies.
 
+This section presents \sketchname's performance on fast storage, revealing the following:
+\begin{itemize}
+    \item On fast storage (emulated CXL with latencies 100$\times$ faster than SATA
+    SSD and 10$\times$ faster than NVMe SSD), \sketchname demonstrates dramatic
+    performance advantages over traditional concurrency control. TicToc-\psketchname
+    achieves up to 3.55$\times$ and 21.5$\times$ higher goodput than 2PL and KR-OCC
+    in high-contention workloads, with up to 286\% improvement over TicToc-Disk.
+    STO-\psketchname achieves up to 11.9--70.6$\times$ more goodput than 2PL/KR-OCC
+    in TPC-C, demonstrating that timestamp-based methods excel when storage latency
+    is no longer the bottleneck.
+    
+    \item Performance improvements extend consistently across synthetic and
+    realistic benchmarks. In write-intensive workloads, TicToc-\psketchname is
+    2.12$\times$ and 3.16$\times$ faster than 2PL and KR-OCC, with 200\% improvement
+    over TicToc-Disk. For mixed-transaction workloads, TicToc-\psketchname achieves
+    1.78$\times$ and 24.3$\times$ higher throughput than 2PL and KR-OCC, with 77\%
+    improvement over TicToc-Disk. TPC-C results show 25--44.5\% and 105--150\%
+    improvements over Disk variants for TicToc and STO, respectively, across all
+    contention levels.
+    
+    \item As storage becomes faster, \sketchname variants exhibit overhead from
+    hash table operations, memory allocation, and sketch eviction that create a
+    performance gap compared to the idealized Memory variant (39.5\% and 22.5\%
+    lower for TicToc-\psketchname and STO-\psketchname, respectively). CPU cycles
+    become the limiting factor rather than storage latency, revealing opportunities
+    for future optimization, particularly for medium-contention workloads where
+    overheads are more visible.
+\end{itemize}
+
 \subsection{CXL Emulation Methodology}
 
 To evaluate \sketchname's effectiveness on next-generation storage technologies,
@@ -1040,7 +1086,7 @@ becomes more pronounced, revealing areas for future optimization.
                     height = 3.6cm,
                     width = 4.5cm,
                     ybar= 2*\pgflinewidth,
-                    xtick={-1, 0.425, 3.1},
+                    xtick={-1, 1.05, 3.1},
                     xticklabels={2PL/OCC, STO, TicToc},
                     ymajorgrids=true,
                     enlarge x limits = 0.2,
@@ -1054,84 +1100,84 @@ becomes more pronounced, revealing areas for future optimization.
                 \nextgroupplot[title={Read-intensive},YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 58.2401)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 9.641523)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 100.589433) (3, 342.33)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 32.581733) (3, 53.617733)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 34.518667) (3, 60.1803)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 52.053633) (3, 105.591)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 78.006133) (3, 206.962)};
+                \addplot[Memory-BarStyle] coordinates {(1.05, 100.589433) (3.1, 342.33)};
+                \addplot[Disk-BarStyle] coordinates {(1.05, 32.581733) (3.1, 53.617733)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.05, 34.518667) (3.1, 60.1803)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.05, 52.053633) (3.1, 105.591)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.05, 78.006133) (3.1, 206.962)};
                 \coordinate (top) at (rel axis cs:0,1);% coordinate at top of the first plot
 
                 % graph [1,3] high
                 \nextgroupplot[title={Write-intensive}, YCSBThroughputBarChartPlot]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 19.146733)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 12.871567)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 20.868633) (3, 48.751833)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 11.414233) (3, 13.5591)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 10.320467) (3, 12.3741)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 17.8436) (3, 30.488667)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 19.657167) (3, 40.6375)};
+                \addplot[Memory-BarStyle] coordinates {(1.05, 20.868633) (3.1, 48.751833)};
+                \addplot[Disk-BarStyle] coordinates {(1.05, 11.414233) (3.1, 13.5591)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.05, 10.320467) (3.1, 12.3741)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.05, 17.8436) (3.1, 30.488667)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.05, 19.657167) (3.1, 40.6375)};
 
                 % graph [1,1] medium
                 \nextgroupplot[title={Read-intensive},YCSBThroughputBarChartPlot]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 272.525667)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 5.632817)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 304.898) (3, 305.503333)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 189.604) (3, 113.674333)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 71.498267) (3, 71.392467)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 149.862667) (3, 151.15)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 235.684667) (3, 235.993333)};
+                \addplot[Memory-BarStyle] coordinates {(1.05, 304.898) (3.1, 305.503333)};
+                \addplot[Disk-BarStyle] coordinates {(1.05, 189.604) (3.1, 113.674333)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.05, 71.498267) (3.1, 71.392467)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.05, 149.862667) (3.1, 151.15)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.05, 235.684667) (3.1, 235.993333)};
 
 
                 % graph [1,3] medium
                 \nextgroupplot[title={Write-intensive},YCSBThroughputBarChartPlot]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 299.059333)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 5.085443)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 293.822) (3, 293.970333)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 154.005) (3, 146.303)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 70.924433) (3, 71.719567)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 156.197) (3, 161.700667)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 255.064) (3, 255.141333)};
+                \addplot[Memory-BarStyle] coordinates {(1.05, 293.822) (3.1, 293.970333)};
+                \addplot[Disk-BarStyle] coordinates {(1.05, 154.005) (3.1, 146.303)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.05, 70.924433) (3.1, 71.719567)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.05, 156.197) (3.1, 161.700667)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.05, 255.064) (3.1, 255.141333)};
                 \coordinate (bot) at (rel axis cs:1,0);% coordinate at bottom of the last plot
 
                 % graph [1,2] read intensive
                 \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.260427)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.415827)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 0.314407) (3, 0.130448)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 0.300011) (3, 0.136726)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.296994) (3, 0.130361)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.386568) (3, 0.256559)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.330712) (3, 0.149822)};
+                \addplot[Memory-BarStyle] coordinates {(1.05, 0.314407) (3.1, 0.130448)};
+                \addplot[Disk-BarStyle] coordinates {(1.05, 0.300011) (3.1, 0.136726)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.05, 0.296994) (3.1, 0.130361)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.05, 0.386568) (3.1, 0.256559)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.05, 0.330712) (3.1, 0.149822)};
 
                 % graph [1,4] write intensive
                 \nextgroupplot[AbortRateBarChartPlot]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.513741)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.493239)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 0.517988) (3, 0.28678)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 0.516791) (3, 0.27266)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.535364) (3, 0.292757)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.538097) (3, 0.337119)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.517645) (3, 0.297033)};
+                \addplot[Memory-BarStyle] coordinates {(1.05, 0.517988) (3.1, 0.28678)};
+                \addplot[Disk-BarStyle] coordinates {(1.05, 0.516791) (3.1, 0.27266)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.05, 0.535364) (3.1, 0.292757)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.05, 0.538097) (3.1, 0.337119)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.05, 0.517645) (3.1, 0.297033)};
 
                 % graph [1,2]
                 \nextgroupplot[AbortRateBarChartPlot]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.000413)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.000167)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 0.000085) (3, 0.000031)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 0.000081) (3, 0.000045)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.000098) (3, 0.000032)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.001611) (3, 0.000105)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.000211) (3, 0.00008)};
+                \addplot[Memory-BarStyle] coordinates {(1.05, 0.000085) (3.1, 0.000031)};
+                \addplot[Disk-BarStyle] coordinates {(1.05, 0.000081) (3.1, 0.000045)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.05, 0.000098) (3.1, 0.000032)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.05, 0.001611) (3.1, 0.000105)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.05, 0.000211) (3.1, 0.00008)};
 
                 % graph [1,4]
                 \nextgroupplot[AbortRateBarChartPlot]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.002108)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.001008)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 0.000498) (3, 0.000191)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 0.000456) (3, 0.000237)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.000605) (3, 0.000398)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.007669) (3, 0.000779)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.003707) (3, 0.000566)};
+                \addplot[Memory-BarStyle] coordinates {(1.05, 0.000498) (3.1, 0.000191)};
+                \addplot[Disk-BarStyle] coordinates {(1.05, 0.000456) (3.1, 0.000237)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.05, 0.000605) (3.1, 0.000398)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.05, 0.007669) (3.1, 0.000779)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.05, 0.003707) (3.1, 0.000566)};
 
             \end{groupplot}
             \coordinate (c) at ($(top)!.5!(bot)$);
@@ -1235,7 +1281,7 @@ on fast storage.
                     height = 3.6cm,
                     width = 4.5cm,
                     ybar= 2*\pgflinewidth,
-                    xtick={-1, 0.425, 3.1},
+                    xtick={-1, 1.05, 3.1},
                     xticklabels={2PL/OCC, STO, TicToc},
                     ymajorgrids=true,
                     enlarge x limits = 0.225,
@@ -1249,42 +1295,42 @@ on fast storage.
                 \nextgroupplot[YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}, ylabel style={yshift=-5pt}]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 174.950333)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 9.13111)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 180.33) (3, 311.536)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 92.825067) (3, 125.022333)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 64.094933) (3, 91.446867)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 71.368433) (3, 105.553667)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 140.384333) (3, 221.610333)};
+                \addplot[Memory-BarStyle] coordinates {(1.05, 180.33) (3.1, 311.536)};
+                \addplot[Disk-BarStyle] coordinates {(1.05, 92.825067) (3.1, 125.022333)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.05, 64.094933) (3.1, 91.446867)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.05, 71.368433) (3.1, 105.553667)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.05, 140.384333) (3.1, 221.610333)};
                 \coordinate (top) at (rel axis cs:0,1);% coordinate at top of the first plot
 
                 % graph [2,1] abort rate
                 \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}, ylabel style={yshift=-3pt}]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.138208)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.263853)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 0.126144) (3, 0.058634)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 0.122566) (3, 0.057911)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.136498) (3, 0.059566)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.239943) (3, 0.117789)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.139826) (3, 0.065083)};
+                \addplot[Memory-BarStyle] coordinates {(1.05, 0.126144) (3.1, 0.058634)};
+                \addplot[Disk-BarStyle] coordinates {(1.05, 0.122566) (3.1, 0.057911)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.05, 0.136498) (3.1, 0.059566)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.05, 0.239943) (3.1, 0.117789)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.05, 0.139826) (3.1, 0.065083)};
 
                 % graph [3,1] medium
                 \nextgroupplot[YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}, ylabel style={yshift=-8pt}]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 556.961)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 7.140063)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 720.277667) (3, 714.753333)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 345.637667) (3, 267.104333)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 135.666333) (3, 134.658333)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 68.007267) (3, 284.942667)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 315.562667) (3, 475.911667)};
+                \addplot[Memory-BarStyle] coordinates {(1.05, 720.277667) (3.1, 714.753333)};
+                \addplot[Disk-BarStyle] coordinates {(1.05, 345.637667) (3.1, 267.104333)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.05, 135.666333) (3.1, 134.658333)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.05, 68.007267) (3.1, 284.942667)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.05, 315.562667) (3.1, 475.911667)};
 
                 % graph [4,1] medium abort rate
                 \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}, ylabel style={yshift=-3pt}]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.000335)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.000148)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 0.000432) (3, 0.000202)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 0.000239) (3, 0.000221)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.000194) (3, 0.000078)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.257643) (3, 0.00023)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.08147) (3, 0.000191)};
+                \addplot[Memory-BarStyle] coordinates {(1.05, 0.000432) (3.1, 0.000202)};
+                \addplot[Disk-BarStyle] coordinates {(1.05, 0.000239) (3.1, 0.000221)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.05, 0.000194) (3.1, 0.000078)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.05, 0.257643) (3.1, 0.00023)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.05, 0.08147) (3.1, 0.000191)};
                 \coordinate (bot) at (rel axis cs:1,0);% coordinate at bottom of the last plot
 
             \end{groupplot}
@@ -1355,7 +1401,7 @@ are executed quickly.
                     height = 3.6cm,
                     width = 4.5cm,
                     ybar= 2*\pgflinewidth,
-                    xtick={-1, 0.425, 3.1},
+                    xtick={-1, 1.05, 3.1},
                     xticklabels={2PL/OCC, STO, TicToc},
                     ymajorgrids=true,
                     enlarge x limits = 0.225,
@@ -1369,22 +1415,22 @@ are executed quickly.
                 \nextgroupplot[YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}, ylabel style={yshift=-5pt}]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 7.24927)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.275767)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 14.4813) (3, 9.571037)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 13.3011) (3, 9.311203)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 12.304867) (3, 8.088823)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 13.978767) (3, 9.499523)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 14.869067) (3, 9.124267)};
+                \addplot[Memory-BarStyle] coordinates {(1.05, 14.4813) (3.1, 9.571037)};
+                \addplot[Disk-BarStyle] coordinates {(1.05, 13.3011) (3.1, 9.311203)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.05, 12.304867) (3.1, 8.088823)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.05, 13.978767) (3.1, 9.499523)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.05, 14.869067) (3.1, 9.124267)};
                 \coordinate (top) at (rel axis cs:0,1);% coordinate at top of the first plot
 
                 % graph [1,2] abort rate
                 \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}, ylabel style={yshift=-5pt}]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.542658)}; % double check
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.829988)}; % double check
-                \addplot[Memory-BarStyle] coordinates {(0.425, 0.260036) (3, 0.24408)}; % double check
-                \addplot[Disk-BarStyle] coordinates {(0.425, 0.29484) (3, 0.248819)}; % double check sto
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.307315) (3, 0.256368)}; % double check sto
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.267667) (3, 0.246097)}; % double check
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.263106) (3, 0.247183)}; % double check
+                \addplot[Memory-BarStyle] coordinates {(1.05, 0.260036) (3.1, 0.24408)}; % double check
+                \addplot[Disk-BarStyle] coordinates {(1.05, 0.29484) (3.1, 0.248819)}; % double check sto
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.05, 0.307315) (3.1, 0.256368)}; % double check sto
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.05, 0.267667) (3.1, 0.246097)}; % double check
+                \addplot[FPSketch-BarStyle] coordinates {(1.05, 0.263106) (3.1, 0.247183)}; % double check
                 \coordinate (bot) at (rel axis cs:1,0);% coordinate at bottom of the last plot
 
             \end{groupplot}
@@ -1416,7 +1462,7 @@ small transactions on fast storage as well.
                     height = 3.6cm,
                     width = 4.5cm,
                     ybar= 2*\pgflinewidth,
-                    xtick={-0.8625, 0.425, 3},
+                    xtick={-0.8625, 1.06875, 3},
                     xticklabels={2PL/OCC, STO, TicToc},
                     xticklabel style={font=\tiny},
                     ymajorgrids=true,
@@ -1431,43 +1477,43 @@ small transactions on fast storage as well.
                 \nextgroupplot[title={4 warehouses},YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 25.981933)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 4.766923)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 59.3193) (3, 54.249267)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 23.122733) (3, 29.668767)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 17.227167) (3, 19.149033)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 41.3587) (3, 27.051667)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 56.8103) (3, 42.8906)};
+                \addplot[Memory-BarStyle] coordinates {(1.06875, 59.3193) (3, 54.249267)};
+                \addplot[Disk-BarStyle] coordinates {(1.06875, 23.122733) (3, 29.668767)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.06875, 17.227167) (3, 19.149033)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.06875, 41.3587) (3, 27.051667)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.06875, 56.8103) (3, 42.8906)};
                 \coordinate (top) at (rel axis cs:0,1);% coordinate at top of the first plot
 
                 % graph [1,2]
                 \nextgroupplot[title={8 warehouses}, YCSBThroughputBarChartPlot]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 40.674833)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 2.690287)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 95.317467) (3, 85.340067)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 33.973233) (3, 41.828467)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 29.014767) (3, 25.245733)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 42.335667) (3, 30.594867)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 85.059467) (3, 58.450233)};
+                \addplot[Memory-BarStyle] coordinates {(1.06875, 95.317467) (3, 85.340067)};
+                \addplot[Disk-BarStyle] coordinates {(1.06875, 33.973233) (3, 41.828467)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.06875, 29.014767) (3, 25.245733)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.06875, 42.335667) (3, 30.594867)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.06875, 85.059467) (3, 58.450233)};
 
                 % graph [1,3]
                 \nextgroupplot[title={16 warehouses},YCSBThroughputBarChartPlot]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 60.0792)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 1.714923)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 126.781667) (3, 113.534667)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 49.8068) (3, 62.967367)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 33.078067) (3, 31.654267)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 37.753067) (3, 38.951133)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 111.767) (3, 78.6518)};
+                \addplot[Memory-BarStyle] coordinates {(1.06875, 126.781667) (3, 113.534667)};
+                \addplot[Disk-BarStyle] coordinates {(1.06875, 49.8068) (3, 62.967367)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.06875, 33.078067) (3, 31.654267)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.06875, 37.753067) (3, 38.951133)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.06875, 111.767) (3, 78.6518)};
 
 
                 % graph [1,4] 32wh
                 \nextgroupplot[title={32 warehouses},YCSBThroughputBarChartPlot]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 91.371733)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 1.768823)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 136.254) (3, 128.511333)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 60.4086) (3, 77.2502)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 35.204067) (3, 35.5132)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 54.0724) (3, 62.5415)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 124.853) (3, 103.150333)};
+                \addplot[Memory-BarStyle] coordinates {(1.06875, 136.254) (3, 128.511333)};
+                \addplot[Disk-BarStyle] coordinates {(1.06875, 60.4086) (3, 77.2502)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.06875, 35.204067) (3, 35.5132)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.06875, 54.0724) (3, 62.5415)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.06875, 124.853) (3, 103.150333)};
 
                 \coordinate (bot) at (rel axis cs:1,0);% coordinate at bottom of the last plot
 
@@ -1475,41 +1521,41 @@ small transactions on fast storage as well.
                 \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.343923)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.582189)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 0.308396) (3, 0.358287)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 0.300735) (3, 0.362429)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.306576) (3, 0.373073)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.378139) (3, 0.439741)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.316455) (3, 0.38327)};
+                \addplot[Memory-BarStyle] coordinates {(1.06875, 0.308396) (3, 0.358287)};
+                \addplot[Disk-BarStyle] coordinates {(1.06875, 0.300735) (3, 0.362429)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.06875, 0.306576) (3, 0.373073)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.06875, 0.378139) (3, 0.439741)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.06875, 0.316455) (3, 0.38327)};
 
                 % graph [2,2] 8 wh
                 \nextgroupplot[AbortRateBarChartPlot]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.26031)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.619373)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 0.259365) (3, 0.328457)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 0.249634) (3, 0.322022)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.259498) (3, 0.320605)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.383305) (3, 0.448231)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.279779) (3, 0.364156)};
+                \addplot[Memory-BarStyle] coordinates {(1.06875, 0.259365) (3, 0.328457)};
+                \addplot[Disk-BarStyle] coordinates {(1.06875, 0.249634) (3, 0.322022)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.06875, 0.259498) (3, 0.320605)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.06875, 0.383305) (3, 0.448231)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.06875, 0.279779) (3, 0.364156)};
 
                 % graph [2,3] 16 wh
                 \nextgroupplot[AbortRateBarChartPlot]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.181629)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.626907)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 0.194619) (3, 0.282973)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 0.189055) (3, 0.271532)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.180874) (3, 0.280659)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.572401) (3, 0.40728)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.23819) (3, 0.320579)};
+                \addplot[Memory-BarStyle] coordinates {(1.06875, 0.194619) (3, 0.282973)};
+                \addplot[Disk-BarStyle] coordinates {(1.06875, 0.189055) (3, 0.271532)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.06875, 0.180874) (3, 0.280659)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.06875, 0.572401) (3, 0.40728)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.06875, 0.23819) (3, 0.320579)};
 
                 % graph [2,4] 32 wh
                 \nextgroupplot[AbortRateBarChartPlot]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.133359)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.512981)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 0.040332) (3, 0.202382)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 0.067348) (3, 0.215892)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.063018) (3, 0.20933)};
-                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.74949) (3, 0.291205)};
-                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.167312) (3, 0.247521)};
+                \addplot[Memory-BarStyle] coordinates {(1.06875, 0.040332) (3, 0.202382)};
+                \addplot[Disk-BarStyle] coordinates {(1.06875, 0.067348) (3, 0.215892)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(1.06875, 0.063018) (3, 0.20933)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(1.06875, 0.74949) (3, 0.291205)};
+                \addplot[FPSketch-BarStyle] coordinates {(1.06875, 0.167312) (3, 0.247521)};
             \end{groupplot}
             \coordinate (c) at ($(top)!.5!(bot)$);
 

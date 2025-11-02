@@ -145,20 +145,22 @@ provides the performance data used in the analyses that follow.
 \centering
 \caption{Comparative Performance Characteristics of Storage Media}
 \label{tab:storage-characteristics}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccc}
 \toprule
 Performance Metric & HDD & SATA SSD & NVMe SSD & CXL-based SSD \\
 \midrule
-Latency & 5-20 milliseconds (ms) & 100-500 microseconds (µs) & 20-100 microseconds (µs) & 1-10 microseconds (µs) \\
-Random Read IOPS & ~100-200 & ~100,000 & ~1,000,000 - ~1,500,000 & N/A \\
+Latency & 5-20 ms & 100-500 µs & 20-100 µs & 1-10 µs \\
+Random Read IOPS & ~100-200 & ~100,000 & ~1M-1.5M & >1M \\
 \midrule
-Sequential Throughput & ~150-250 MB/s & ~550 MB/s & ~7,000 MB/s & ~16 GB/s (PCIe 5.0 x4) \\
+Sequential Throughput & ~150-250 MB/s & ~600 MB/s & ~7,000 MB/s & ~16 GB/s (PCIe 5.0 x4) \\
 \midrule
 Interface/Protocol & SATA / ATA & SATA / AHCI & PCIe / NVMe & PCIe / CXL.mem \\
 \midrule
 Primary Bottleneck & Mechanical (Seek/Rotation) & Interface/Protocol & CPU / Concurrency & Interconnect / Memory Controller \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \section{Evaluating \sketchname Across the Storage Spectrum}
@@ -226,12 +228,12 @@ drives to future high-speed, memory-like storage.
 \section{Dissertation Outline}
 The rest of this dissertation is organized as follows:
 \begin{description}[leftmargin=2.5em, labelindent=0em, style=nextline]
-    \item[Chapter 2: Background and Motivation] 
+    \item[Chapter \ref{chapter:two}: Background and Motivation] 
     This chapter gives a full background on timestamp-based concurrency control
     protocols, modern storage technologies, and the performance features that
     inspire this work.
 
-    \item[Chapter 3: \sketchname]
+    \item[Chapter \ref{chapter:three}: \sketchname]
     This chapter explains the design and construction of \sketchname, which is
     the first main contribution. It describes its method for approximate
     timestamp storage, its hybrid hash table and sketch data structure, and how
@@ -240,16 +242,16 @@ The rest of this dissertation is organized as follows:
     comparing its performance to traditional concurrency control methods and
     ideal baselines across various workloads.
 
-    \item[Chapter 4: Evaluating \sketchname Across the Storage Spectrum]
+    \item[Chapter \ref{chapter:four}: Evaluating \sketchname Across the Storage Spectrum]
     This chapter offers the second primary contribution: a detailed analysis of
     the \sketchname\ paradigm as used with legacy (HDD, SATA SSD) and new
     (CXL-SSD) storage, examining its impact and evolving role.
 
-    \item[Chapter 5: Related Work]
+    \item[Chapter \ref{chapter:five}: Related Work]
     This chapter reviews related research on disk-based concurrency control,
     approximate data structures in databases, and tiered memory management.
 
-    \item[Chapter 6: Conclusion and Future Work]
+    \item[Chapter \ref{chapter:six}: Conclusion and Future Work]
     This chapter summarizes the dissertation's contributions, restates the main
     thesis, and outlines possible directions for future study.
 \end{description}
