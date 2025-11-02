@@ -114,7 +114,7 @@ incompatible with TicToc because accurate timestamp data is critical during
 validation, and TicToc relies on decentralized, fine-grained validation.
 
 
-\section{On-disk concurrency control}
+\section{On-Disk Concurrency Control}
 
 Conventional concurrency control mechanisms, such as two-phase locking
 (2PL) and optimistic concurrency control (OCC), are widely employed by
@@ -129,7 +129,7 @@ concurrency control algorithms to disk-based transactional databases,
 including those originally designed for in-memory contexts, instead of
 relying solely on classical methods.
 
-\section{Acceleration of timestamp accesses}
+\section{Timestamp Access Acceleration}
 
 Many disk-based RDBMSs (e.g., Postgres and MySQL) and write-optimized
 systems (e.g., RocksDB) embed timestamps in their tuple structures,
@@ -145,7 +145,7 @@ disk. We believe that transactional systems leveraging FPSketch can
 attain even stronger performance gains when paired with robust page
 cache management.
 
-\section{Approximation and summarization in databases}
+\section{Approximation and Summarization in Databases}
 
 Numerous databases approximate or summarize transaction metadata in
 order to optimize I/O or reduce memory usage.  For example, PostgreSQL
@@ -163,7 +163,7 @@ because, in all these prior schemes, approximations and summations are
 used as fast paths (e.g. hintbits) or to drive garbage collection.
 However, they are not used as part of the CC mechanism itself.
 
-\section{Approximation with sketches}
+\section{Approximation with Sketches}
 
 In networking, FlexSwitch~\cite{flexswitch} uses an approximation
 technique called min-timestamp to manage packet routing through
