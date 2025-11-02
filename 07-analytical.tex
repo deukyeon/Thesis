@@ -1,15 +1,72 @@
-Storage media span from the next-generation low-latency byte-addressable fabric
-such as CXL-based flash with DRAM-like latency to traditional high-capacity but
-high-latency HDDs. As \sketchname enables the modern concurrency-controls to
-disk-based key-value stores, it is important to evaluate \sketchname on various
-storage media. Because production systems use various storage media, we believe
-evaluating \sketchname in various storage media scenarios will be crucial. It
-not only uncovers opportunities for adoption in wider range of systems but also
-can provide a guidance for future development as storage media continue to be faster.
-We evaluate \sketchname in both slow and fast storage media scenarios.
+Storage technologies in production environments span several orders of magnitude
+in performance---from traditional hard disk drives (HDDs) with millisecond 
+latencies to emerging byte-addressable storage like CXL-based flash approaching 
+DRAM-like speeds. Since \sketchname enables modern timestamp-based concurrency 
+control for disk-based key-value stores, evaluating its effectiveness across this 
+performance spectrum is critical for understanding both current deployment 
+opportunities and future applicability as storage technologies continue to evolve.
+
+This chapter presents a comprehensive evaluation across slow storage (SATA SSD and 
+HDD) in Section~\ref{sec:slow-storage} and fast storage (emulated CXL-based flash) 
+in Section~\ref{sec:fast-storage} to reveal how \sketchname's benefits and 
+trade-offs evolve with storage characteristics. Our analysis demonstrates that 
+\sketchname remains effective across this wide range, though the nature of its 
+advantages changes fundamentally as storage performance improves.
 
 
-\section{Slow Storage}
+\section{Slow Storage}\label{sec:slow-storage}
+
+We begin our evaluation with slow storage scenarios, which represent traditional
+disk-based systems where storage latency significantly impacts transaction
+processing performance. On slow storage, disk I/O becomes the dominant bottleneck,
+making the elimination of timestamp disk accesses provided by \sketchname 
+particularly valuable. These results demonstrate how \sketchname performs under
+challenging storage conditions and reveal its effectiveness when storage 
+characteristics fundamentally limit transaction throughput.
+
+We use the same workloads and evaluation methods as in Section~\ref{sec:eval}.
+For slow storage setups, we run experiments using both SATA SSD and HDD. The
+SATA SSD experiments are run on the same type of machine as the NVMe SSD tests,
+with only the storage hardware changed. However, for the HDD tests, we use a
+different machine because CloudLab does not offer machines with HDDs. Using SATA
+SSD allows us to compare results fairly with NVMe SSD and other faster storage.
+In contrast, the HDD experiments show how \sketchname performs on a real hard
+disk, helping us understand its behavior in truly slow storage situations.
+
+
+\subsection{SATA SSD}
+
+\subsubsection{YCSB Small-Transaction Workloads}
+
+Figure~\ref{fig:ycsb:slow_ssd} presents the goodput of all our timestamp-based
+concurrency control (CC) variants on four YCSB small-transaction workloads using
+slow SSD storage. The patterns in the results are similar to those shown in
+Section~\ref{sec:eval} for NVMe SSD. The \sketchname variants regularly achieve
+goodput very close to the Memory setup, which shows that they remain effective
+even when storage is slower.
+
+In read-intensive workloads, the \sketchname variants (\fsketchname and
+\psketchname) almost match the goodput of the Memory setup. They improve goodput
+by as much as 39\% compared to the Disk variant when contention is high, and up
+to 23\% better in medium-contention situations. The TicToc-\psketchname setup in
+particular improves goodput by 65\% over 2PL and by 19\% over KR-OCC in
+workloads with high contention.
+
+For write-intensive workloads, the difference in goodput becomes even greater.
+Here, the \sketchname variants (\fsketchname and \psketchname) again produce
+goodput close to the Memory variant. In high-contention cases, they boost
+goodput by up to 569\% over the Disk variant, and by up to 119\% when contention
+is medium. The TicToc-\psketchname configuration shows especially strong
+results, delivering 589\% and 152\% higher goodput than 2PL and KR-OCC,
+respectively, for high-contention workloads.
+
+TicToc is a highly concurrent CC method that uses timestamps. When combined with
+\sketchname, TicToc achieves the best performance in all workloads. This is
+because \sketchname removes the need to frequently access timestamps on disk,
+which lessens storage delays. \sketchname is especially helpful for
+write-intensive, high-contention workloads, because these workloads consist of
+quick operations enabled by SplinterDB's fast write speed and high cache hit
+rate even though storage is slow.
 
 
 
@@ -81,7 +138,7 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.415079)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 0.310117) (1.7125, 0.294705) (3, 0.13013)};
                 \addplot[Disk-BarStyle] coordinates {(0.425, 0.309437) (1.7125, 0.285392) (3, 0.134926)};
-                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.332255) (1.7125, 4.262087) (3, 0.130042)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.332255) (1.7125, 0.300908) (3, 0.130042)};
                 \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.311321) (1.7125, 0.302894) (3, 0.157114)};
                 \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.308572) (1.7125, 0.304875) (3, 0.134233)};
 
@@ -124,13 +181,16 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
             \node[below] at (cc1 |- current bounding box.south) {(a) High-contended YCSB (zipf=0.99)};
             \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contended YCSB (zipf=0.6)};
         \end{tikzpicture}
-    }
-    \caption[YCSB small-transaction workloads results on slow SSD]{YCSB small-transaction workloads results with 120 processing threads on slow SSD. In write-intensive workloads, each transaction performs 8 reads and 8 writes. In read-intensive workloads, each transaction performs 15 reads and 1 write. Note that, in the medium-contended workload, several schemes have abort rates very close to 0.}
+    } \caption[YCSB small-transaction workloads results on slow SSD]{YCSB
+    small-transaction workloads results with 120 processing threads on slow SSD.
+    In write-intensive workloads, each transaction performs 8 reads and 8
+    writes. In read-intensive workloads, each transaction performs 15 reads and
+    1 write. Note that, in the medium-contended workload, several variants have
+    abort rates very close to 0.}
     \label{fig:ycsb:slow_ssd}
 \end{figure}
 
-
-
+\subsubsection{YCSB Mixed-Transaction Workloads}
 
 \begin{figure}[!t]
     \centering
@@ -202,12 +262,32 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
             \node[below] at (cc1 |- current bounding box.south) {(a) High-contended (zipf=0.99)};
             \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contended (zipf=0.6)};
         \end{tikzpicture}
-    }
-    \caption[YCSB mixed-transaction workloads results on slow SSD]{YCSB mixed-transaction workloads results with 120 processing threads on slow SSD. 80\% of transactions perform 2 reads and 2 writes, and 20\% of transactions perform 28 reads. Note that, in the medium-contended workload, several schemes have abort rates very close to 0.}
-    \label{fig:ycsb:mixed}
+    } \caption[YCSB mixed-transaction workloads results on slow SSD]{YCSB
+    mixed-transaction workloads results with 120 processing threads on slow SSD.
+    80\% of transactions perform 2 reads and 2 writes, and 20\% of transactions
+    perform 28 reads. Note that, in the medium-contended workload, several
+    variants have abort rates very close to 0.}
+    \label{fig:ycsb:mixed:slow_ssd}
 \end{figure}
 
 
+In \Cref{fig:ycsb:mixed:slow_ssd}, both \sketchname variants show strong
+performance in mixed-transaction settings on slow SSD. In high-contention
+scenarios, \sketchname offers up to 60\% higher goodput than the Disk variants.
+It also outperforms 2PL and KR-OCC, with goodput increases of up to 24\% and
+59\%, respectively.
+
+Under medium contention, the goodputs of these systems are mainly limited by
+slow disk access. Unlike our evaluation with NVMe SSDs described in
+\Cref{sec:eval}, the concurrency control method has little effect on overall
+goodput. However, since the Disk variants must fetch timestamps from the disk,
+there is extra overhead, resulting in lower goodput. \sketchname avoids this
+disk overhead and can improve goodput by up to 40\%.
+
+
+
+
+\subsubsection{YCSB Long-Transaction Workloads}
 
 
 \begin{figure}[!t]
@@ -237,7 +317,7 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 1.132117)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 2.381903)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 4.298397) (1.7125, 2.3857) (3, 2.398567)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 2.726483) (1.7125, 0.010374) (3, 1.47637)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 2.726483) (1.7125, 0.006448) (3, 1.47637)};
                 \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 2.55686) (1.7125, 1.613997) (3, 1.495053)};
                 \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 4.369143) (1.7125, 2.26709) (3, 2.393783)};
                 \addplot[FPSketch-BarStyle] coordinates {(0.425, 4.84888) (1.7125, 1.949793) (3, 2.39416)};
@@ -246,9 +326,9 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
                 % graph [1,2] abort rate
                 \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}, ylabel style={yshift=-5pt}]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.780498)};
-                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.338777)}; % double check
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.338777)}; 
                 \addplot[Memory-BarStyle] coordinates {(0.425, 0.306208) (1.7125, 0.271251) (3, 0.250567)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 0.311134) (1.7125, 0.604878) (3, 0.24539)}; % double check mvcc
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.311134) (1.7125, 0.268125) (3, 0.24539)};
                 \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.340524) (1.7125, 0.275897) (3, 0.249158)};
                 \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.30175) (1.7125, 0.249261) (3, 0.25168)};
                 \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.287686) (1.7125, 0.261718) (3, 0.268675)};
@@ -261,10 +341,23 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
         \end{tikzpicture}
     }
     \caption[YCSB long-transaction workloads results on slow SSD]{YCSB long-transaction workloads results with 120 processing threads on slow SSD. 5\% of transactions perform 1000 reads and the rest of transactions perform 8 writes and 8 reads. The distribution is Zipfian with 0.9.}
-    \label{fig:ycsb:long}
+    \label{fig:ycsb:long:slow_ssd}
 \end{figure}
 
 
+\Cref{fig:ycsb:long:slow_ssd} presents the goodput results for the
+long-transaction workload on slow SSD. The main pattern is similar to previous
+results: the \sketchname variants achieve higher goodput than their Disk
+versions and 2PL/KR-OCC. Because the disk is slow, long transactions run more
+slowly and the differences between each method are smaller than with the faster
+NVMe SSD shown in \Cref{fig:ycsb:long}. Still, although \sketchname is not as
+effective as with NVMe SSD, it continues to deliver the best performance among
+all tested protocols.
+
+
+
+
+\subsubsection{TPC-C Workloads}
 
 
 \begin{figure*}[!t]
@@ -310,10 +403,10 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
                 % graph [1,3]
                 \nextgroupplot[title={16 warehouses},YCSBThroughputBarChartPlot]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 9.963947)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 10.092567)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 3.257557)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 9.537317) (1.7125, 7.649797) (3, 9.185967)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 7.545187) (1.7125, 0.205451) (3, 7.702217)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 7.545187) (1.7125, 0.224447) (3, 7.702217)};
                 \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 8.662643) (1.7125, 4.814237) (3, 8.409643)};
                 \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 10.459933) (1.7125, 5.09145) (3, 9.528323)};
                 \addplot[FPSketch-BarStyle] coordinates {(0.425, 9.873883) (1.7125, 4.969443) (3, 9.350587)};
@@ -321,10 +414,10 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
                 % graph [1,4] 32wh
                 \nextgroupplot[title={32 warehouses},YCSBThroughputBarChartPlot]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 8.281773)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 8.402127)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 3.368457)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 7.48262) (1.7125, 6.326153) (3, 7.225083)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 5.781087) (1.7125, 0.097421) (3, 6.190753)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 5.781087) (1.7125, 0.077289) (3, 6.190753)};
                 \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 6.90269) (1.7125, 3.958337) (3, 6.694893)};
                 \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 8.722823) (1.7125, 4.49392) (3, 7.51293)};
                 \addplot[FPSketch-BarStyle] coordinates {(0.425, 7.79229) (1.7125, 4.189127) (3, 7.45213)};
@@ -353,20 +446,20 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
                 % graph [2,3] 16 wh
                 \nextgroupplot[AbortRateBarChartPlot]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.256053)}; % rerun with higher abort panelty
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.180696)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.618218)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 0.205467) (1.7125, 0.207115) (3, 0.298383)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 0.197486) (1.7125, 0.324352) (3, 0.288648)}; % rerun mvcc
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.197486) (1.7125, 0.204732) (3, 0.288648)};
                 \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.206902) (1.7125, 0.197685) (3, 0.279051)};
                 \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.395279) (1.7125, 0.525739) (3, 0.361279)};
                 \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.334312) (1.7125, 0.252467) (3, 0.356596)};
 
                 % graph [2,4] 32 wh
                 \nextgroupplot[AbortRateBarChartPlot]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.276659)};  % return
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.13619)};  % return
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.498413)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 0.065079) (1.7125, 0.05539) (3, 0.218316)};
-                \addplot[Disk-BarStyle] coordinates {(0.425, 0.05402) (1.7125, 0.2233) (3, 0.198286)}; % rerun mvcc
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.05402) (1.7125, 0.062805) (3, 0.198286)};
                 \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.056568) (1.7125, 0.042959) (3, 0.193242)};
                 \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.496261) (1.7125, 0.568785) (3, 0.302585)};
                 \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.373169) (1.7125, 0.189238) (3, 0.300333)};
@@ -380,15 +473,562 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
         \end{tikzpicture}
     }
     \caption[TPC-C results on slow SSD]{TPC-C results with 120 processing threads on slow SSD (More warehouses means less contention).}
-    \label{fig:tpcc}
+    \label{fig:tpcc:slow_ssd}
 \end{figure*}
 
+Figure~\ref{fig:tpcc:slow_ssd} shows the goodput for the same TPC-C workloads
+described in \Cref{sec:eval-setup}. In general, the results show that the
+\sketchname variants achieve higher goodput than the Disk variants because they
+remove the I/O overhead caused by accessing timestamps. When compared to 2PL,
+\sketchname variants achieve better goodput in high-contention cases,
+specifically with 4 and 8 warehouses. However, 2PL performs a bit better than
+TicToc with \sketchname. This difference comes from their abort patterns: 2PL is
+more likely to abort \texttt{Payment} transactions, which are shorter, while
+TicToc more often aborts the longer \texttt{NewOrder} transactions. For example,
+in the 32-warehouse scenario, 93\% of aborts in 2PL are from \texttt{Payment}
+transactions, but in TicToc, 79\% of aborts are from \texttt{NewOrder}
+transactions. Because TicToc must re-execute aborted transactions, this hurts
+its goodput, especially in environments with slow disks. As a result,
+TicToc-\psketchname is 0.89$\times$ as fast as 2PL in the 32-warehouse case, but
+in the 4-warehouse scenario, it is 1.5$\times$ faster than 2PL.
+
+Having examined SATA SSD performance, we now turn to HDDs to evaluate \sketchname
+under even more challenging storage conditions. HDDs represent the slowest storage
+type in our evaluation, with latencies measured in milliseconds rather than
+microseconds. This allows us to observe how \sketchname's effectiveness scales
+as storage becomes increasingly I/O-bound and to understand its behavior in truly
+slow storage environments where disk access dominates all other factors.
+
+
+\subsection{HDD}
+
+Hard disk drives (HDDs) are still widely used today for storing very large
+amounts of data because they are inexpensive and can hold a lot of information.
+For these experiments, we used a different server since CloudLab does not
+provide the same machine with an HDD. The system we used for our HDD evaluation
+has a 36-core Intel(R) Xeon(R) Gold 6154 CPU running at 3.00GHz (with 2 threads
+per core), 192GiB of DDR4 2666 MHz memory, and an 893GiB SCSI HDD. In these
+tests, we used 60 threads because the version of SplinterDB we ran requires
+keeping some CPU cores available.
 
 
 
+\subsubsection{YCSB Small-Transaction Workloads}
+
+\begin{figure}[!t]
+    \centering
+    \resizebox{\textwidth}{!}{%
+        \begin{tikzpicture}
+            \begin{groupplot}[group style={group size=4 by 2,
+                            /pgf/bar width=2.7pt},
+                    height = 3.6cm,
+                    width = 4.5cm,
+                    ybar= 2*\pgflinewidth,
+                    xtick={-1, 0.425, 1.7125, 3.1},
+                    xticklabels={2PL/OCC, STO, MVTO, TicToc},
+                    ymajorgrids=true,
+                    enlarge x limits = 0.2,
+                    legend columns=-1,
+                    legend entries={{\ssmall Memory (Idealized)}, {\ssmall Disk}, {\ssmall Disk-Cache}, {\ssmall \fsketchname},  {\ssmall \psketchname}},
+                    area legend,
+                    legend to name=grouplegend,
+                ]
+
+                % graph [1,1] high
+                \nextgroupplot[title={Read-intensive},YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 8.04716)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 14.695467)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 12.507633) (1.7125, 12.443733) (3, 15.512933)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 11.482667) (1.7125, 0.032009) (3, 11.2091)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 9.275193) (1.7125, 8.73535) (3, 10.287267)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 12.488167) (1.7125, 11.936367) (3, 13.065367)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 12.669733) (1.7125, 11.999567) (3, 15.265833)};
+                \coordinate (top) at (rel axis cs:0,1);% coordinate at top of the first plot
+
+                % graph [1,3] high
+                \nextgroupplot[title={Write-intensive}, YCSBThroughputBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 4.608637)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 18.0974)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 7.979627) (1.7125, 5.519357) (3, 35.047833)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 4.551933) (1.7125, 0.022174) (3, 5.246687)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 4.043277) (1.7125, 3.439533) (3, 4.70213)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 8.250597) (1.7125, 5.342587) (3, 31.205367)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 7.749817) (1.7125, 5.59362) (3, 32.499733)};
+
+                % graph [1,1] medium
+                \nextgroupplot[title={Read-intensive},YCSBThroughputBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 5.74492)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 5.701743)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 5.495853) (1.7125, 5.41075) (3, 5.564913)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 4.99792) (1.7125, 0.02941) (3, 4.655443)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 4.54806) (1.7125, 4.207397) (3, 4.484957)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 5.40575) (1.7125, 5.208967) (3, 5.57541)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 5.540247) (1.7125, 5.27708) (3, 5.5448)};
 
 
-\section{Fast Storage}
+                % graph [1,3] medium
+                \nextgroupplot[title={Write-intensive},YCSBThroughputBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 10.272067)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 10.4202)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 10.319067) (1.7125, 9.46724) (3, 10.3047)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 4.80508) (1.7125, 0.029812) (3, 4.726683)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 4.47477) (1.7125, 3.780167) (3, 4.576263)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 10.01148) (1.7125, 6.948757) (3, 10.13065)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 10.33551) (1.7125, 7.09663) (3, 10.452133)};
+                \coordinate (bot) at (rel axis cs:1,0);% coordinate at bottom of the last plot
+
+                % graph [1,2] read intensive
+                \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.247383)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.301227)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.222445) (1.7125, 0.206034) (3, 0.07278)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.21628) (1.7125, 0.25627) (3, 0.074478)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.23351) (1.7125, 0.228067) (3, 0.073814)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.228598) (1.7125, 0.218929) (3, 0.103984)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.221732) (1.7125, 0.216595) (3, 0.075632)};
+
+                % graph [1,4] write intensive
+                \nextgroupplot[AbortRateBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.465557)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.34286)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.400389) (1.7125, 0.306523) (3, 0.197603)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.476595) (1.7125, 0.454508) (3, 0.243955)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.494111) (1.7125, 0.444139) (3, 0.258452)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.394383) (1.7125, 0.309213) (3, 0.21479)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.399936) (1.7125, 0.315027) (3, 0.203892)};
+
+                % graph [1,2]
+                \nextgroupplot[AbortRateBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.000222)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.00011)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.000047) (1.7125, 0.000047) (3, 0.000017)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.000039) (1.7125, 0.000046) (3, 0.000024)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.000045) (1.7125, 0.000044) (3, 0.000016)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.328226) (1.7125, 0.330902) (3, 0.000046)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.000279) (1.7125, 0.000117) (3, 0.000039)};
+
+                % graph [1,4]
+                \nextgroupplot[AbortRateBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.001511)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.000493)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.000238) (1.7125, 0.000219) (3, 0.000093)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.000276) (1.7125, 0.000137) (3, 0.000174)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.000238) (1.7125, 0.000242) (3, 0.00018)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.427524) (1.7125, 0.3174) (3, 0.00022)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.016898) (1.7125, 0.003473) (3, 0.000212)};
+
+            \end{groupplot}
+            \coordinate (c) at ($(top)!.5!(bot)$);
+            \coordinate (cc1) at ($(top)!.25!(bot)$);
+            \coordinate (cc2) at ($(top)!.75!(bot)$);
+
+            \node[above] at (c |- current bounding box.north) {\ref{grouplegend}};
+            \node[below] at (cc1 |- current bounding box.south) {(a) High-contended YCSB (zipf=0.99)};
+            \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contended YCSB (zipf=0.6)};
+        \end{tikzpicture}
+    } \caption[YCSB small-transaction workloads results on HDD]{YCSB
+    small-transaction workloads results with 60 processing threads on HDD. In
+    write-intensive workloads, each transaction performs 8 reads and 8 writes.
+    In read-intensive workloads, each transaction performs 15 reads and 1 write.
+    Note that, in the medium-contended workload, several variants have abort
+    rates very close to 0.}
+    \label{fig:ycsb:slow_hdd}
+\end{figure}
+
+
+\Cref{fig:ycsb:slow_hdd} shows the results of running YCSB small-transaction
+workloads with 60 processing threads on an HDD. In the high-contention,
+read-intensive workload, KR-OCC reaches about 14 KTPS. Because disk I/O is a
+major bottleneck with slow storage, KR-OCC performs better than other
+timestamp-based concurrency control (CC) methods except for TicToc.
+TicToc-\psketchname has the highest goodput in this workload, running 1.04 times
+faster than KR-OCC. In addition, \psketchname increases TicToc's goodput by 36\%
+compared to TicToc-Disk.
+
+Similar to the results in \Cref{fig:ycsb:slow_ssd}, when the workload is
+high-contention and write-intensive, \sketchname keeps TicToc's high
+performance. TicToc-\psketchname achieves 1.8 times the speed of KR-OCC and
+increases goodput by 519\% compared to TicToc-Disk.
+
+For workloads with medium contention, all methods are mainly limited by I/O. The
+Disk versions have extra I/O overhead to get timestamps. \sketchname removes
+this overhead, increasing goodput by up to 19\% and 121\% for the read-intensive
+and the write-intensive workloads, respectively.
+
+
+
+\subsubsection{YCSB Mixed-Transaction Workloads}
+
+
+\begin{figure}[!t]
+    \centering
+    \resizebox{\textwidth}{!}{%
+        \begin{tikzpicture}
+            \begin{groupplot}[group style={group size=4 by 1,
+                            /pgf/bar width=2.7pt},
+                    height = 3.6cm,
+                    width = 4.5cm,
+                    ybar= 2*\pgflinewidth,
+                    xtick={-1, 0.425, 1.7125, 3.1},
+                    xticklabels={2PL/OCC, STO, MVTO, TicToc},
+                    ymajorgrids=true,
+                    enlarge x limits = 0.225,
+                    legend columns=-1,
+                    legend entries={{\ssmall Memory (Idealized)}, {\ssmall Disk}, {\ssmall Disk-Cache}, {\ssmall \fsketchname},  {\ssmall \psketchname}},
+                    area legend,
+                    legend to name=grouplegend,
+                ]
+
+                % graph [1,1] high
+                \nextgroupplot[YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}, ylabel style={yshift=-5pt}]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 14.398367)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 22.5943)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 18.620767) (1.7125, 20.2924) (3, 21.2467)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 14.2852) (1.7125, 0.057283) (3, 13.813567)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 11.8618) (1.7125, 10.774433) (3, 12.974133)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 13.572667) (1.7125, 11.1527) (3, 18.250733)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 18.253) (1.7125, 17.012867) (3, 21.638033)};
+                \coordinate (top) at (rel axis cs:0,1);% coordinate at top of the first plot
+
+                % graph [2,1] abort rate
+                \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}, ylabel style={yshift=-3pt}]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.120156)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.153397)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.081903) (1.7125, 0.025545) (3, 0.034029)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.083356) (1.7125, 0.034113) (3, 0.032248)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.085848) (1.7125, 0.031777) (3, 0.031905)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.131356) (1.7125, 0.088476) (3, 0.05094)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.086357) (1.7125, 0.07476) (3, 0.034597)};
+
+                % graph [3,1] medium
+                \nextgroupplot[YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}, ylabel style={yshift=-8pt}]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 11.759533)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 11.808467)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 11.777167) (1.7125, 11.1943) (3, 11.590367)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 9.137557) (1.7125, 0.053173) (3, 8.6221)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 8.24723) (1.7125, 7.554443) (3, 8.227663)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 8.86626) (1.7125, 7.247293) (3, 11.721167)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 11.8456) (1.7125, 10.549667) (3, 11.9516)};
+
+                % graph [4,1] medium abort rate
+                \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}, ylabel style={yshift=-3pt}]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.000225)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.000255)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.000116) (1.7125, 0.000018) (3, 0.000039)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.000103) (1.7125, 0.000052) (3, 0.000041)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.000092) (1.7125, 0.000077) (3, 0.000034)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.180175) (1.7125, 0.132656) (3, 0.000122)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.061843) (1.7125, 0.029213) (3, 0.00009)};
+                \coordinate (bot) at (rel axis cs:1,0);% coordinate at bottom of the last plot
+
+            \end{groupplot}
+            \coordinate (c) at ($(top)!.5!(bot)$);
+            \coordinate (cc1) at ($(top)!.25!(bot)$);
+            \coordinate (cc2) at ($(top)!.75!(bot)$);
+
+            \node[above] at (c |- current bounding box.north) {\ref{grouplegend}};
+            \node[below] at (cc1 |- current bounding box.south) {(a) High-contended (zipf=0.99)};
+            \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contended (zipf=0.6)};
+        \end{tikzpicture}
+    } \caption[YCSB mixed-transaction workloads results on HDD]{YCSB
+    mixed-transaction workloads results with 60 processing threads on HDD. 80\%
+    of transactions perform 2 reads and 2 writes, and 20\% of transactions
+    perform 28 reads. Note that, in the medium-contended workload, several
+    variants have abort rates very close to 0.}
+    \label{fig:ycsb:mixed:hdd}
+\end{figure}
+
+\Cref{fig:ycsb:mixed:hdd} shows the results of running YCSB mixed-transaction
+workloads with 60 processing threads on an HDD. The results are similar to the
+read-intensive workload results on HDD in \Cref{fig:ycsb:slow_hdd} because 20\%
+of transactions perform 28 reads. TicToc-\psketchname is 0.96$\times$ slower
+than KR-OCC but it increases goodput by 56.6\% compared to TicToc-Disk.
+
+
+
+\subsubsection{YCSB Long-Transaction Workload}
+
+
+
+\begin{figure}[!t]
+    \centering
+    \resizebox{.75\textwidth}{!}{%
+        \begin{tikzpicture}
+            \begin{groupplot}[group style={
+                            group size=2 by 1,
+                            horizontal sep=1.5cm,
+                            /pgf/bar width=2.7pt
+                        },
+                    height = 3.6cm,
+                    width = 4.5cm,
+                    ybar= 2*\pgflinewidth,
+                    xtick={-1, 0.425, 1.7125, 3.1},
+                    xticklabels={2PL/OCC, STO, MVTO, TicToc},
+                    ymajorgrids=true,
+                    enlarge x limits = 0.225,
+                    legend columns=1,
+                    legend entries={{\ssmall Memory (Idealized)}, {\ssmall Disk}, {\ssmall Disk-Cache}, {\ssmall \fsketchname},  {\ssmall \psketchname}},
+                    area legend,
+                    legend to name=grouplegend,
+                ]
+
+                % graph [1,1] high
+                \nextgroupplot[YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}, ylabel style={yshift=-5pt}]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.978672)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 2.292817)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 2.254873) (1.7125, 2.272397) (3, 2.263723)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 1.441723) (1.7125, 0.006307) (3, 1.035913)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 1.399493) (1.7125, 1.361513) (3, 1.10648)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 2.25934) (1.7125, 1.798883) (3, 2.244893)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 2.364233) (1.7125, 1.121917) (3, 2.22647)};
+                \coordinate (top) at (rel axis cs:0,1);% coordinate at top of the first plot
+
+                % graph [1,2] abort rate
+                \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}, ylabel style={yshift=-5pt}]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.684035)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.282721)}; % double check
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.259254) (1.7125, 0.128753) (3, 0.224552)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.264165) (1.7125, 0.365076) (3, 0.204642)}; % double check mvcc
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.270411) (1.7125, 0.182728) (3, 0.199765)}; % rerun
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.258943) (1.7125, 0.189777) (3, 0.222702)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.259826) (1.7125, 0.234995) (3, 0.227486)};
+                \coordinate (bot) at (rel axis cs:1,0);% coordinate at bottom of the last plot
+
+            \end{groupplot}
+            \coordinate (c) at ($(top)!.5!(bot)$);
+
+            \node[right=4cm] at (c |- current bounding box.east) {\ref{grouplegend}};
+        \end{tikzpicture}
+    } \caption[YCSB long-transaction workloads results on HDD]{YCSB
+    long-transaction workloads results with 60 processing threads on HDD. 5\% of
+    transactions perform 1000 reads and the rest of transactions perform 8
+    writes and 8 reads. The distribution is Zipfian with 0.9.}
+    \label{fig:ycsb:long:hdd}
+\end{figure}
+
+As the slow disk is a major bottleneck in read-intensive workloads, all methods
+except 2PL show similar goodput, while 2PL causes higher abort rates. \sketchname
+variants show their effectiveness in removing the need to access timestamps on
+disk, resulting in higher goodput. However, MVTO with \sketchname incurs extra
+write operations as described in \Cref{sec:fpsketch:mvto}, resulting in lower
+goodput.
+
+
+\subsubsection{TPC-C Workloads}
+
+\begin{figure*}[!t]
+    \centering
+    \resizebox{\textwidth}{!}{%
+        \begin{tikzpicture}
+            \begin{groupplot}[group style={group size=4 by 2,
+                            /pgf/bar width=2.7pt},
+                    height = 3.6cm,
+                    width = 4.5cm,
+                    ybar= 2*\pgflinewidth,
+                    xtick={-0.8625, 0.425, 1.7125, 3},
+                    xticklabels={2PL/OCC, STO, MVTO, TicToc},
+                    xticklabel style={font=\tiny},
+                    ymajorgrids=true,
+                    enlarge x limits = 0.2,
+                    legend columns=-1,
+                    legend entries={{\ssmall Memory (Idealized)}, {\ssmall Disk}, {\ssmall Disk-Cache}, {\ssmall \fsketchname},  {\ssmall \psketchname}},
+                    area legend,
+                    legend to name=grouplegend,
+                ]
+
+                % graph [1,1]
+                \nextgroupplot[title={4 warehouses},YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 19.115367)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 18.856033)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 23.608167) (1.7125, 14.4289) (3, 22.799833)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 16.973967) (1.7125, 1.393113) (3, 18.8406)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 16.312733) (1.7125, 9.138087) (3, 12.860733)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 22.9111) (1.7125, 12.039267) (3, 20.9325)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 23.628533) (1.7125, 12.440333) (3, 22.200533)};
+                \coordinate (top) at (rel axis cs:0,1);% coordinate at top of the first plot
+
+                % graph [1,2]
+                \nextgroupplot[title={8 warehouses}, YCSBThroughputBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 18.381033)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 16.4903)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 19.961433) (1.7125, 13.819533) (3, 19.699833)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 15.508133) (1.7125, 1.069157) (3, 16.799167)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 14.151633) (1.7125, 7.96076) (3, 12.205833)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 18.863267) (1.7125, 10.526333) (3, 19.065667)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 20.064667) (1.7125, 10.490667) (3, 19.3602)};
+
+                % graph [1,3]
+                \nextgroupplot[title={16 warehouses},YCSBThroughputBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 14.7968)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 12.914467)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 14.465267) (1.7125, 10.981267) (3, 14.941067)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 11.4572) (1.7125, 0.588741) (3, 12.457133)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 10.463967) (1.7125, 6.40315) (3, 9.55108)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 14.398667) (1.7125, 8.379683) (3, 15.104167)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 15.039833) (1.7125, 7.637783) (3, 15.2448)};
+
+
+                % graph [1,4] 32wh
+                \nextgroupplot[title={32 warehouses},YCSBThroughputBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 11.7632)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 10.5966)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 10.126013) (1.7125, 8.492203) (3, 10.425733)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 8.154903) (1.7125, 0.066267) (3, 8.868137)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 8.18903) (1.7125, 5.0047) (3, 7.765507)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 10.880967) (1.7125, 6.456127) (3, 10.9942)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 11.699533) (1.7125, 5.712097) (3, 10.9556)};
+
+                \coordinate (bot) at (rel axis cs:1,0);% coordinate at bottom of the last plot
+
+                % graph [2,1] 4 wh
+                \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.135487)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.327479)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.16263) (1.7125, 0.190511) (3, 0.181326)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.168929) (1.7125, 0.164452) (3, 0.201198)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.173134) (1.7125, 0.164581) (3, 0.226057)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.193154) (1.7125, 0.318299) (3, 0.188983)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.170551) (1.7125, 0.205813) (3, 0.189242)};
+
+                % graph [2,2] 8 wh
+                \nextgroupplot[AbortRateBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.102231)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.352503)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.116895) (1.7125, 0.130499) (3, 0.165533)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.13252) (1.7125, 0.11766) (3, 0.176234)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.134825) (1.7125, 0.140453) (3, 0.183218)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.192119) (1.7125, 0.345666) (3, 0.177427)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.144327) (1.7125, 0.138727) (3, 0.178054)};
+
+                % graph [2,3] 16 wh
+                \nextgroupplot[AbortRateBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.064185)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.318935)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.063774) (1.7125, 0.056843) (3, 0.15089)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.062464) (1.7125, 0.075799) (3, 0.14947)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.056327) (1.7125, 0.039754) (3, 0.147102)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.243272) (1.7125, 0.398401) (3, 0.178241)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.17467) (1.7125, 0.121197) (3, 0.178254)};
+
+                % graph [2,4] 32 wh
+                \nextgroupplot[AbortRateBarChartPlot]
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.036227)};
+                \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.195207)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 0.008601) (1.7125, 0.006069) (3, 0.086278)};
+                \addplot[Disk-BarStyle] coordinates {(0.425, 0.007884) (1.7125, 0.004012) (3, 0.082685)};
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0.004574) (1.7125, 0.002209) (3, 0.081135)};
+                \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 0.28479) (1.7125, 0.445157) (3, 0.12057)};
+                \addplot[FPSketch-BarStyle] coordinates {(0.425, 0.20554) (1.7125, 0.116253) (3, 0.11906)};
+
+                \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 0) (1.7125, 0) (3, 0)};
+
+            \end{groupplot}
+            \coordinate (c) at ($(top)!.5!(bot)$);
+
+            \node[above] at (c |- current bounding box.north) {\ref{grouplegend}};
+        \end{tikzpicture}
+    } \caption[TPC-C results on HDD]{TPC-C results with 60 processing threads
+    on HDD (More warehouses means less contention).}
+    \label{fig:tpcc:hdd}
+\end{figure*}
+
+Figure~\ref{fig:tpcc:hdd} presents the goodput results for the TPC-C workloads
+described in \Cref{sec:eval-setup}, but now running on an HDD. As seen with the
+YCSB experiments on HDD, \sketchname performs very well in high-contention
+situations with a small number of warehouses. When contention is lower, however,
+the performance of all concurrency control methods becomes similar because the
+speed of the slow hard drive limits throughput. With 4 warehouses,
+STO-\psketchname and TicToc-\psketchname achieve up to 1.25$\times$ and
+1.18$\times$ better goodput than 2PL/KR-OCC, respectively.
+
+
+
+\section{Fast Storage}\label{sec:fast-storage}
+
+Having demonstrated \sketchname's effectiveness on slow storage, we now evaluate
+its performance on fast storage media, such as CXL-based flash with DRAM-like 
+latency. This evaluation reveals a fundamental shift in performance 
+characteristics: as storage becomes faster, the system transitions from being 
+I/O-bound to CPU-bound, making the overhead of the \sketchname data structure 
+itself more visible relative to storage access costs. These results provide 
+insights into how \sketchname variants scale as storage technologies continue to 
+evolve toward lower latencies.
+
+\subsection{CXL Emulation Methodology}
+
+To evaluate \sketchname's effectiveness on next-generation storage technologies,
+we emulate CXL-based flash storage using block ramdisk. This subsection details
+our emulation methodology, the assumptions we make, and how our results relate to
+real CXL hardware.
+
+\subsubsection{Emulation Setup}
+
+We use block ramdisk on the same CloudLab machine described in \Cref{sec:eval-setup}
+to emulate CXL-based flash with DRAM-like latency. Block ramdisk provides storage
+access through the standard block device interface while storing data in RAM,
+effectively creating a software-based storage layer that mimics the low latency
+characteristics of memory-like storage technologies. This approach allows us to
+evaluate \sketchname's behavior when storage access times are dramatically reduced
+without requiring specialized CXL hardware that may not be readily available in
+experimental environments.
+
+The emulated storage provides latencies approximately 100$\times$ faster than SATA
+SSD and 10$\times$ faster than NVMe SSD, closely approximating the characteristics
+of next-generation CXL-based storage. Specifically, while NVMe SSDs achieve
+latencies in the 20--100 microsecond range, CXL-based storage targets latencies in
+the single-digit microsecond range (1--10 microseconds). Our block ramdisk
+emulation achieves latencies on the order of hundreds of nanoseconds, providing a
+reasonable approximation of CXL performance characteristics for the purpose of
+understanding how \sketchname scales as storage becomes faster.
+
+\subsubsection{Assumptions and Limitations}
+
+Our emulation makes several important assumptions that should be considered when
+interpreting results:
+
+\begin{itemize}
+    \item \textbf{Interface semantics}: Block ramdisk uses the standard block
+    device interface, whereas real CXL storage may support byte-addressable access
+    through the CXL.mem protocol. This difference may affect the relative
+    performance of different access patterns, though the fundamental latency
+    characteristics we seek to emulate are preserved.
+    
+    \item \textbf{Bandwidth characteristics}: Real CXL storage provides high
+    bandwidth (up to 16 GB/s on PCIe 5.0 x4), whereas our emulation is limited by
+    system RAM bandwidth. However, since our evaluation focuses on latency-bound
+    operations (random I/O for timestamp access), bandwidth differences have minimal
+    impact on our findings.
+    
+    \item \textbf{Remote memory effects}: Real CXL storage may exhibit NUMA-like
+    behavior with remote memory access characteristics. Our emulation does not
+    capture these effects, though \sketchname's effectiveness in avoiding remote
+    access overhead remains valid.
+    
+    \item \textbf{CPU overhead}: Block ramdisk still incurs some software overhead
+    from the block device stack, whereas real CXL storage with direct memory access
+    may have different overhead characteristics. However, this overhead is minimal
+    compared to actual storage latency and does not materially affect our
+    conclusions.
+\end{itemize}
+
+\subsubsection{Experimental Configuration}
+
+In these fast storage experiments, we evaluate only STO and TicToc protocols.
+MVTO runs out of memory on the machine with 256GB of memory because its write
+operations keep creating new versions of keys, making it impractical for
+evaluation on fast storage where write rates are extremely high. We run 120
+processing threads for all experiments, matching the configuration used in our
+NVMe SSD evaluations. All other experimental parameters (workloads, database size,
+cache configurations) remain consistent with the evaluations described in
+\Cref{sec:eval-setup} to ensure fair comparison across storage types.
+
+The following sections present results showing that \sketchname variants
+significantly outperform 2PL and KR-OCC on fast storage, achieving dramatic
+improvements in high-contention scenarios while maintaining effectiveness across
+all workload types. However, the relative overhead of \sketchname operations
+becomes more pronounced, revealing areas for future optimization.
+
+\subsubsection{YCSB Small-Transaction Workloads}
 
 
 \begin{figure}[!t]
@@ -412,7 +1052,7 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
                 % graph [1,1] high
                 \nextgroupplot[title={Read-intensive},YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 40.608133)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 58.2401)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 9.641523)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 100.589433) (3, 342.33)};
                 \addplot[Disk-BarStyle] coordinates {(0.425, 32.581733) (3, 53.617733)};
@@ -423,7 +1063,7 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
                 % graph [1,3] high
                 \nextgroupplot[title={Write-intensive}, YCSBThroughputBarChartPlot]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 13.4068)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 19.146733)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 12.871567)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 20.868633) (3, 48.751833)};
                 \addplot[Disk-BarStyle] coordinates {(0.425, 11.414233) (3, 13.5591)};
@@ -433,9 +1073,9 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
                 % graph [1,1] medium
                 \nextgroupplot[title={Read-intensive},YCSBThroughputBarChartPlot]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 249.212)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 272.525667)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 5.632817)};
-                \addplot[Memory-BarStyle] coordinates {(0.425, 304.898)(3, 305.503333)};
+                \addplot[Memory-BarStyle] coordinates {(0.425, 304.898) (3, 305.503333)};
                 \addplot[Disk-BarStyle] coordinates {(0.425, 189.604) (3, 113.674333)};
                 \addplot[Disk-Cache-BarStyle] coordinates {(0.425, 71.498267) (3, 71.392467)};
                 \addplot[Counter-Lazy-BarStyle] coordinates {(0.425, 149.862667) (3, 151.15)};
@@ -444,7 +1084,7 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
                 % graph [1,3] medium
                 \nextgroupplot[title={Write-intensive},YCSBThroughputBarChartPlot]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 266.868333)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 299.059333)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 5.085443)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 293.822) (3, 293.970333)};
                 \addplot[Disk-BarStyle] coordinates {(0.425, 154.005) (3, 146.303)};
@@ -455,7 +1095,7 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
                 % graph [1,2] read intensive
                 \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.300394)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.260427)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.415827)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 0.314407) (3, 0.130448)};
                 \addplot[Disk-BarStyle] coordinates {(0.425, 0.300011) (3, 0.136726)};
@@ -465,7 +1105,7 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
                 % graph [1,4] write intensive
                 \nextgroupplot[AbortRateBarChartPlot]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.573143)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.513741)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.493239)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 0.517988) (3, 0.28678)};
                 \addplot[Disk-BarStyle] coordinates {(0.425, 0.516791) (3, 0.27266)};
@@ -475,7 +1115,7 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
                 % graph [1,2]
                 \nextgroupplot[AbortRateBarChartPlot]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.00056)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.000413)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.000167)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 0.000085) (3, 0.000031)};
                 \addplot[Disk-BarStyle] coordinates {(0.425, 0.000081) (3, 0.000045)};
@@ -485,7 +1125,7 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
                 % graph [1,4]
                 \nextgroupplot[AbortRateBarChartPlot]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.002115)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.002108)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.001008)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 0.000498) (3, 0.000191)};
                 \addplot[Disk-BarStyle] coordinates {(0.425, 0.000456) (3, 0.000237)};
@@ -502,12 +1142,88 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
             \node[below] at (cc1 |- current bounding box.south) {(a) High-contended YCSB (zipf=0.99)};
             \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contended YCSB (zipf=0.6)};
         \end{tikzpicture}
-    }
-    \caption[YCSB small-transaction workloads results on fast storage]{YCSB small-transaction workloads results with 120 processing threads on fast storage. In write-intensive workloads, each transaction performs 8 reads and 8 writes. In read-intensive workloads, each transaction performs 15 reads and 1 write. Note that, in the medium-contended workload, several schemes have abort rates very close to 0.}
-    \label{fig:ycsb:slow_ssd}
+    } \caption[YCSB small-transaction workloads results on fast storage]{YCSB
+    small-transaction workloads results with 120 processing threads on fast
+    storage. In write-intensive workloads, each transaction performs 8 reads and
+    8 writes. In read-intensive workloads, each transaction performs 15 reads
+    and 1 write. Note that, in the medium-contended workload, several variants
+    have abort rates very close to 0.}
+    \label{fig:ycsb:fast_storage}
 \end{figure}
 
+Figure~\ref{fig:ycsb:fast_storage} presents the goodput results for all our
+timestamp-based concurrency control (CC) variants across four small-transaction
+YCSB workloads when using fast storage. 
 
+The first key result is that timestamp-based CC methods work much better with
+fast storage than 2PL and KR-OCC. This improvement happens because
+timestamp-based methods allow more transactions to run at the same time (higher
+concurrency) and result in fewer aborts, whereas 2PL and KR-OCC start to
+experience CPU limitations when storage is no longer slow. KR-OCC is especially
+affected, since it needs more synchronization to check for conflicts when
+committing transactions. 
+
+The second main finding is that splitting timestamp storage using \sketchname is
+effective. However, when Disk variants store timestamps on SplinterDB with fast
+storage, they are still slower than pure in-memory dedicated timestamp storage.
+This is because accessing timestamps through SplinterDB is more complex than
+accessing them from memory directly.
+
+A third observation is that \sketchname variants do not reach the performance of
+the idealized Memory counterpart as storage becomes faster. This is due to the
+overhead from the \sketchname data structure itself. On slow storage, these
+overheads are negligible compared to disk I/O latency, but on fast storage they
+become significant. The overhead has several components: (1) Hash table operations:
+\sketchname must create and delete entries in a hash table, which requires 
+allocating and copying memory for keys based on their reference count. In the 
+high-contention, read-intensive workload for TicToc-\psketchname, roughly 80\% of 
+\texttt{IncRef} calls are responsible for creating new entries in the hash table, 
+which increases overhead. (2) Sketch eviction: \fsketchname has additional overhead 
+because it needs to evict keys from the hash table to the sketch when reference 
+counts reach zero, a step that does not occur in the \psketchname variant. (3) 
+Memory allocation: Both variants require dynamic memory allocation for hash table 
+entries and key storage, which incurs CPU cycles and potential cache misses. These 
+overheads collectively create a performance gap between Memory and \sketchname 
+variants that grows larger on fast storage, where CPU cycles become the limiting 
+factor rather than storage latency.
+
+In the high-contention, read-intensive workload, TicToc-\psketchname is
+3.55$\times$ and 21.5$\times$ faster than 2PL and KR-OCC, respectively.
+STO-\psketchname is 1.39$\times$ faster than 2PL and 8.1$\times$ faster than
+KR-OCC. TicToc-\psketchname increases goodput by 286\% compared to TicToc-Disk.
+STO-\psketchname increases goodput by 139\% compared to STO-Disk. However,
+compared to the Memory variant, TicToc-\psketchname has 39.5\% lower goodput,
+and STO-\psketchname is 22.5\% lower.
+
+For the write-intensive workload, similar trends appear but the differences are
+smaller. This is because the storage latency is less important for write
+operations in write-optimized data structures like LSM-trees. In the
+high-contention, write-intensive case, TicToc-\psketchname is 2.12$\times$ and
+3.16$\times$ faster than 2PL and KR-OCC, respectively. STO-\psketchname is
+closer to 2PL and 1.53$\times$ faster than KR-OCC. TicToc-\psketchname shows a
+200\% improvement over TicToc-Disk, and STO-\psketchname improves by 72.2\% over
+STO-Disk.
+
+The \fsketchname variant removes the I/O overhead from accessing timestamps on
+disk and so reaches higher goodput than 2PL and KR-OCC. However, it still has
+less goodput than \psketchname variants because it needs to do extra work to
+evict keys and also has a higher abort rate.
+
+In workloads with medium contention, these overheads play a clearer role. Since
+there is less contention, the protocol algorithm itself, rather than transaction
+retries, affects goodput more strongly. In these cases, 2PL slightly outperforms
+\sketchname variants because: (1) with reduced contention, lock conflicts become
+rare, minimizing 2PL's traditional weakness; (2) 2PL avoids the hash table
+operations and memory allocation overheads inherent to \sketchname; and (3) the
+relative cost of lock acquisition and release becomes smaller compared to
+\sketchname's timestamp management operations when storage is fast. This result
+demonstrates that while \sketchname provides substantial benefits, there is room
+for optimization to reduce overhead, particularly for medium-contention workloads
+on fast storage.
+
+
+
+\subsubsection{YCSB Mixed-Transaction Workloads}
 
 
 \begin{figure}[!t]
@@ -531,7 +1247,7 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
                 % graph [1,1] high
                 \nextgroupplot[YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}, ylabel style={yshift=-5pt}]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 124.313667)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 174.950333)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 9.13111)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 180.33) (3, 311.536)};
                 \addplot[Disk-BarStyle] coordinates {(0.425, 92.825067) (3, 125.022333)};
@@ -542,7 +1258,7 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
                 % graph [2,1] abort rate
                 \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}, ylabel style={yshift=-3pt}]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.163619)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.138208)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.263853)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 0.126144) (3, 0.058634)};
                 \addplot[Disk-BarStyle] coordinates {(0.425, 0.122566) (3, 0.057911)};
@@ -552,7 +1268,7 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
                 % graph [3,1] medium
                 \nextgroupplot[YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}, ylabel style={yshift=-8pt}]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 506.71)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 556.961)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 7.140063)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 720.277667) (3, 714.753333)};
                 \addplot[Disk-BarStyle] coordinates {(0.425, 345.637667) (3, 267.104333)};
@@ -562,7 +1278,7 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
                 % graph [4,1] medium abort rate
                 \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}, ylabel style={yshift=-3pt}]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.000344)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.000335)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.000148)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 0.000432) (3, 0.000202)};
                 \addplot[Disk-BarStyle] coordinates {(0.425, 0.000239) (3, 0.000221)};
@@ -580,12 +1296,51 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
             \node[below] at (cc1 |- current bounding box.south) {(a) High-contended (zipf=0.99)};
             \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contended (zipf=0.6)};
         \end{tikzpicture}
-    }
-    \caption[YCSB mixed-transaction workloads results on fast storage]{YCSB mixed-transaction workloads results with 120 processing threads on fast storage. 80\% of transactions perform 2 reads and 2 writes, and 20\% of transactions perform 28 reads. Note that, in the medium-contended workload, several schemes have abort rates very close to 0.}
-    \label{fig:ycsb:mixed}
+    } \caption[YCSB mixed-transaction workloads results on fast storage]{YCSB
+    mixed-transaction workloads results with 120 processing threads on fast
+    storage. 80\% of transactions perform 2 reads and 2 writes, and 20\% of
+    transactions perform 28 reads. Note that, in the medium-contended workload,
+    several variants have abort rates very close to 0.}
+    \label{fig:ycsb:mixed_fast}
 \end{figure}
 
+\Cref{fig:ycsb:mixed_fast} presents the goodput outcomes for all timestamp-based
+CC mechanisms across two mixed-transaction YCSB workloads under fast storage
+conditions.
 
+In the high-contention scenario, the trends of the different CC mechanisms are
+similar to what we observed in the small-transaction workloads, but the
+performance gaps are even larger. This is because mixed-transaction workloads
+have a higher fraction of short transactions compared to the small-transaction
+workloads. Looking at the numbers, TicToc-\psketchname achieves 1.78$\times$ and
+24.3$\times$ higher throughput than 2PL and KR-OCC, respectively.
+STO-\psketchname achieves 1.13$\times$ and 15.37$\times$ higher throughput than
+2PL and KR-OCC, respectively. TicToc-\psketchname also reaches 77\% higher
+goodput than TicToc-Disk, and STO-\psketchname is 51\% faster than STO-Disk.
+However, when compared against the Memory configuration, both
+TicToc-\psketchname and STO-\psketchname have 28\% and 22\% lower goodput,
+respectively.
+
+For the medium-contended scenario, there are two main points. First, similar to
+the small-transaction experiments, 2PL still outperforms the \sketchname
+variants, although the timestamp-based CC mechanisms running with Memory
+configuration are still able to outperform 2PL. This shows that timestamping
+itself is a strong approach. Second, in this situation, a Disk-based
+configuration can outperform its \sketchname variant: STO-Disk achieves
+1.09$\times$ faster than STO-\psketchname, while TicToc-\psketchname still
+outperforms TicToc-Disk. This is the result of differences in abort handling:
+STO aborts transactions immediately upon timestamp order break, while TicToc
+waits until commit time to make this decision. This leads to more
+over-approximation of timestamps in \sketchname for STO, especially since
+mixed-transaction workloads have more short transactions. With bigger sketch
+size than the evaluation setup, the abort rate of STO-\psketchname decreases.
+For example, STO-\psketchname with 256KiB sketch size achieves approximately 520
+KTPS, improving goodput by 50.4\% compared to STO-Disk. Thus, the more memory
+for sketch is necessary for STO if transactions are short and their operations
+are executed quickly.
+
+
+\subsubsection{YCSB Long-Transaction Workload}
 
 
 \begin{figure}[!t]
@@ -612,7 +1367,7 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
                 % graph [1,1] high
                 \nextgroupplot[YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}, ylabel style={yshift=-5pt}]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 4.0899)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 7.24927)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.275767)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 14.4813) (3, 9.571037)};
                 \addplot[Disk-BarStyle] coordinates {(0.425, 13.3011) (3, 9.311203)};
@@ -623,7 +1378,7 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
                 % graph [1,2] abort rate
                 \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}, ylabel style={yshift=-5pt}]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.643159)}; % double check
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.542658)}; % double check
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.829988)}; % double check
                 \addplot[Memory-BarStyle] coordinates {(0.425, 0.260036) (3, 0.24408)}; % double check
                 \addplot[Disk-BarStyle] coordinates {(0.425, 0.29484) (3, 0.248819)}; % double check sto
@@ -637,13 +1392,20 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
             \node[right=4cm] at (c |- current bounding box.east) {\ref{grouplegend}};
         \end{tikzpicture}
-    }
-    \caption[YCSB long-transaction workloads results on fast storage]{YCSB long-transaction workloads results with 120 processing threads on fast storage. 5\% of transactions perform 1000 reads and the rest of transactions perform 8 writes and 8 reads. The distribution is Zipfian with 0.9.}
-    \label{fig:ycsb:long}
+    } \caption[YCSB long-transaction workloads results on fast storage]{YCSB
+    long-transaction workloads results with 120 processing threads on fast
+    storage. 5\% of transactions perform 1000 reads and the rest of transactions
+    perform 8 writes and 8 reads. The distribution is Zipfian with 0.9.}
+    \label{fig:ycsb:long_fast}
 \end{figure}
 
+The results for long-transaction workloads in \Cref{fig:ycsb:long_fast} are
+similar to those on other types of storage. On fast storage, STO and TicToc with
+approximate timestamp storage reach goodput almost equal to their Memory
+versions. This shows that approximate timestamps work well for both large and
+small transactions on fast storage as well.
 
-
+\subsubsection{TPC-C Workloads}
 
 \begin{figure*}[!t]
     \centering
@@ -731,7 +1493,7 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
                 % graph [2,3] 16 wh
                 \nextgroupplot[AbortRateBarChartPlot]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.181629)}; % rerun with higher abort panelty
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.181629)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.626907)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 0.194619) (3, 0.282973)};
                 \addplot[Disk-BarStyle] coordinates {(0.425, 0.189055) (3, 0.271532)};
@@ -741,7 +1503,7 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
                 % graph [2,4] 32 wh
                 \nextgroupplot[AbortRateBarChartPlot]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.133359)};  % return
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.133359)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.512981)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 0.040332) (3, 0.202382)};
                 \addplot[Disk-BarStyle] coordinates {(0.425, 0.067348) (3, 0.215892)};
@@ -753,11 +1515,147 @@ We evaluate \sketchname in both slow and fast storage media scenarios.
 
             \node[above] at (c |- current bounding box.north) {\ref{grouplegend}};
         \end{tikzpicture}
-    }
-    \caption[TPC-C results on fast storage]{TPC-C results with 120 processing threads on fast storage (More warehouses means less contention).}
-    \label{fig:tpcc}
+    } \caption[TPC-C results on fast storage]{TPC-C results with 120 processing
+    threads on fast storage (More warehouses means less contention).}
+    \label{fig:tpcc_fast}
 \end{figure*}
 
+\Cref{fig:tpcc_fast} shows the TPC-C benchmark results on fast storage. The
+figure includes both goodput and abort rates for different concurrency control
+methods as we change the number of warehouses (which also changes the
+contention level). Similar to the YCSB results, both \psketchname and
+\fsketchname always have lower goodput than the Memory version because of extra
+overheads, but they are still much better than the Disk-based methods.
+
+TicToc-\psketchname achieves up to 9 to 58.3$\times$ higher goodput than
+2PL/KR-OCC, and about 25--44.5\% higher goodput than TicToc-Disk at all
+contention levels. STO-\psketchname achieves up to 11.9 to 70.6$\times$ more
+goodput than 2PL/KR-OCC, and about 105--150\% improvement over STO-Disk in all
+cases. The TPC-C benchmark consists of both short and long transactions, and STO
+achieves higher goodput than TicToc for long transactions. This matches our
+earlier findings from the YCSB long-transaction workload in
+\Cref{fig:ycsb:long_fast}.
+
+Comparing \psketchname and \fsketchname, we see that \psketchname always has
+better goodput at every contention level. This is because \psketchname has less
+overhead from sketch evictions. However, the gap between the two gets smaller
+when the workload is less contentious (that is, when there are more warehouses).
+This indicates that \psketchname is a good option for deployment on fast
+storage.
 
 
 \section{Summary}
+
+This chapter presents a comprehensive evaluation of \sketchname across diverse
+storage media, from traditional slow storage (SATA SSD and HDD) to modern fast
+storage emulating CXL-based flash with DRAM-like latency. Our experimental study
+reveals several important findings and lessons that guide the adoption and future
+development of \sketchname.
+
+\subsection{Key Findings}
+
+Our evaluation demonstrates that \sketchname remains effective across a wide
+range of storage technologies. On slow storage media, including SATA SSD and
+HDD, \sketchname variants consistently achieve goodput close to the idealized
+Memory configuration. The benefits are most pronounced in high-contention,
+write-intensive workloads, where \sketchname improves goodput by up to 569\%
+compared to Disk-based timestamp storage on SATA SSD and up to 519\% on HDD.
+Even in medium-contention scenarios where storage I/O becomes the primary
+bottleneck, \sketchname still provides substantial improvements by eliminating
+the overhead of accessing timestamps from disk.
+
+On fast storage media, our experiments reveal a different set of
+characteristics. Timestamp-based concurrency control methods, when combined with
+\sketchname, significantly outperform 2PL and KR-OCC because they enable higher
+concurrency and result in fewer transaction aborts. For instance,
+TicToc-\psketchname achieves up to 3.55$\times$ and 21.5$\times$ higher goodput
+than 2PL and KR-OCC, respectively, in high-contention, read-intensive workloads.
+However, \sketchname variants do not reach the performance of the idealized
+Memory configuration due to overhead from their operations, memory allocation,
+and key management in the \sketchname data structure itself.
+
+\subsection{Lessons Learned}
+
+Our experimental study yields several important lessons. First, the effectiveness
+of \sketchname varies with storage characteristics. On slow storage, where disk
+I/O dominates performance, \sketchname provides substantial benefits by removing
+the need to access timestamps from persistent storage. On fast storage, while
+\sketchname still outperforms Disk-based approaches, the relative overhead of
+the \sketchname data structure becomes more visible. This suggests that future
+optimizations should focus on reducing this overhead, particularly for
+high-performance storage environments.
+
+Second, we observe that \psketchname consistently outperforms \fsketchname
+across all storage types and workloads. The additional overhead of evicting keys
+to the sketch in \fsketchname creates a performance gap that becomes more
+pronounced as storage becomes faster. Moreover, \psketchname also outperforms
+Disk-based configurations in the vast majority of scenarios, making it the clear
+preferred choice among all timestamp storage options. Only in rare cases with
+medium-contention scenarios on fast storage can Disk-based configurations
+occasionally match or slightly exceed \psketchname performance, when the
+overhead of maintaining the sketch outweighs the benefits of avoiding disk
+accesses. In practice, these cases are limited, and \psketchname offers superior
+performance while still eliminating the need to access timestamps from
+persistent storage.
+
+Third, our results highlight the importance of transaction characteristics in
+determining \sketchname's effectiveness. Short transactions with quick
+operations benefit more from \sketchname, especially on slow storage. For long
+transactions, the impact is smaller because the transaction execution time
+dominates, but \sketchname still provides improvements by reducing timestamp
+access overhead. The mixed-transaction workloads demonstrate that \sketchname
+maintains its effectiveness even when workloads contain both short and long
+transactions.
+
+Finally, our evaluation reveals that storage media characteristics fundamentally
+change the performance trade-offs in concurrency control. As storage becomes
+faster, timestamp-based methods with \sketchname emerge as the clear winners
+over traditional locking-based approaches. This finding suggests that as storage
+technology continues to evolve toward lower latency and higher bandwidth,
+\sketchname will become increasingly important for enabling high-performance
+transaction processing in disk-based key-value stores.
+
+\subsection{Deployment Guidelines}
+
+Based on our comprehensive evaluation, we offer the following deployment
+guidelines for \sketchname:
+
+\textbf{Variant selection:} \psketchname should be preferred over \fsketchname in
+virtually all scenarios, as it consistently outperforms \fsketchname across all
+storage types and workloads while requiring similar memory footprint. The only
+exception is when memory constraints are extremely tight and the workload has very
+low contention, where \fsketchname's ability to evict keys might provide marginal
+memory savings.
+
+\textbf{Storage-specific recommendations:} On slow storage (SATA SSD and HDD),
+\sketchname provides dramatic improvements and should be adopted whenever 
+timestamp-based CC methods are used. The benefits are most pronounced for 
+high-contention workloads. On fast storage (CXL-based flash or similar), 
+\sketchname remains beneficial, particularly for high-contention scenarios where
+timestamp-based methods significantly outperform 2PL and KR-OCC. However, the
+overhead becomes more visible, suggesting future optimization opportunities.
+
+\textbf{Workload considerations:} \sketchname is most beneficial for workloads with
+short transactions and high contention, especially write-intensive operations. For
+long transactions, \sketchname still provides improvements, but the impact is
+smaller since transaction execution time dominates. Mixed workloads benefit
+substantially from \sketchname across all storage types.
+
+\textbf{Memory requirements:} \sketchname requires minimal memory (32KB in our
+experiments with an 80GB database), making it practical for deployment even in
+memory-constrained environments. This footprint remains consistent across storage
+types, as the sketch size is workload-dependent rather than storage-dependent.
+
+\textbf{Concurrency control pairing:} TicToc with \psketchname consistently
+provides the best performance across all evaluated scenarios, making it the
+recommended combination for new deployments. STO with \psketchname is also
+excellent, particularly for long transactions. MVTO can benefit from \sketchname
+on slow storage, but may face memory limitations on fast storage with 
+write-intensive workloads.
+
+In conclusion, \sketchname proves to be a valuable technique for enabling modern
+timestamp-based concurrency control methods on persistent storage across a wide
+spectrum of storage technologies. While there are opportunities for further
+optimization, particularly for fast storage environments, the experimental
+evidence strongly supports the adoption of \sketchname in production systems
+that use various storage media.

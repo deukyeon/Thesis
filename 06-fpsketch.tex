@@ -18,7 +18,7 @@ required by transactional workloads.
 \section{Approximate Timestamp Storage}
 \label{sec:requirements}
 
-While timestamp-based CC mechanisms assume the gurantees of a \emph{map} for
+While timestamp-based CC mechanisms assume the guarantees of a \emph{map} for
 storing their read and write timestamps, where a \emph{get} returns the latest
 \emph{put}, here we show that for STO, MVTO, and TicToc such strong guarantees
 are not necessary to ensure serializability. Specifically, we show that an
@@ -590,6 +590,7 @@ release all references to entries in the timestamp storage structure, and unlock
 all the keys.  Aborting, not shown, is similar.
 
 \subsection{MVTO}
+\label{sec:fpsketch:mvto}
 
 In a standard MVTO system, the database may maintain multiple versions of each
 key-value pair---a new version is created whenever a transaction commits a write
@@ -705,17 +706,19 @@ aborts, which can be up to 6 per transaction (including the initial attempt and
 all aborts and commits.
 
 
-\paragraph{Concurrency control mechanisms.} We implement and evaluate several CC
-mechanisms, including all three timestamp-based CCs described
-in~\Cref{sec:background:timestamp-based-cc} (STO, MVTO, and TicToc), and two
-classic CCs which are widely used in disk-based databases: two-phase locking
-(2PL) and Kung-Robinson Optimistic Concurrency Control (OCC). Unlike
-timestamp-based CCs, these two classic mechanisms do not require maintaining
-per-record metadata, thus avoiding disk I/O overhead for metadata access. For
-2PL, we employ a no-wait policy after evaluating multiple deadlock prevention
-mechanisms (including wound-wait and wound-die). We selected no-wait due to its
-generally good performance in our experiments, which aligns with findings from
-previous works~\cite{DBLP:conf/sigmod/RenFA16,DBLP:conf/usenix/TangE18}.
+\subsubsection{Concurrency-Control Mechanisms}
+
+We implement and evaluate several CC mechanisms, including all three
+timestamp-based CCs described in~\Cref{sec:background:timestamp-based-cc} (STO,
+MVTO, and TicToc), and two classic CCs which are widely used in disk-based
+databases: two-phase locking (2PL) and Kung-Robinson Optimistic Concurrency
+Control (OCC). Unlike timestamp-based CCs, these two classic mechanisms do not
+require maintaining per-record metadata, thus avoiding disk I/O overhead for
+metadata access. For 2PL, we employ a no-wait policy after evaluating multiple
+deadlock prevention mechanisms (including wound-wait and wound-die). We selected
+no-wait due to its generally good performance in our experiments, which aligns
+with findings from previous
+works~\cite{DBLP:conf/sigmod/RenFA16,DBLP:conf/usenix/TangE18}.
 
 We implement five variants of STO, MVTO, and TicToc. These variants are
 distinguished by their methods for storing and accessing per-record timestamps,
@@ -875,7 +878,9 @@ timestamps for the much larger set of inactive keys:
 \end{figure}
 
 
-\paragraph{Workloads.} We use two benchmarks to evaluate the performance of the
+\subsubsection{Workloads} 
+
+We use two benchmarks to evaluate the performance of the
 CCs we implement: (1) YCSB~\cite{ycsb}, which models large-scale online
 services, and (2) TPC-C~\cite{tpcc}, the industry standard for evaluating OLTP
 systems.
@@ -919,7 +924,8 @@ caused by random variation.
 \label{sec:ycsb}
 
 
-\paragraph{Small-transaction workloads.}
+\subsubsection{Small-Transaction Workloads}
+
 \Cref{fig:ycsb} shows the goodput and abort rates for all our timestamp-based CC
 mechanisms on our four small-transaction YCSB workloads.
 
@@ -1042,14 +1048,15 @@ We can draw several other conclusions from these results.
 \end{figure}
 
 
-\paragraph{Mixed-transaction workloads.}  \Cref{fig:ycsb:mixed} shows the
-goodput and abort rates for our timestamp-based CC mechanisms on our
-mixed-transaction workloads. Several of the same observations apply here, as
-well: TicToc variants generally perform better than all other variants, 2PL, and
-OCC; Disk variants are substantially slower; and MVTO-Disk suffers in particular
-due to its use of range queries when bringing a key into cache. In
-high-contention workloads, STO and MVTO implementations with \psketchname
-demonstrate higher goodput compared to 2PL and OCC. However, in
+\subsubsection{Mixed-Transaction Workloads} 
+
+\Cref{fig:ycsb:mixed} shows the goodput and abort rates for our timestamp-based
+CC mechanisms on our mixed-transaction workloads. Several of the same
+observations apply here, as well: TicToc variants generally perform better than
+all other variants, 2PL, and OCC; Disk variants are substantially slower; and
+MVTO-Disk suffers in particular due to its use of range queries when bringing a
+key into cache. In high-contention workloads, STO and MVTO implementations with
+\psketchname demonstrate higher goodput compared to 2PL and OCC. However, in
 medium-contention scenarios, they experience performance degradation due to
 unnecessary aborts caused by timestamp approximation. Additionally,
 MVTO-\psketchname incurs extra overhead from maintaining a special V0 version.
@@ -1110,14 +1117,18 @@ compared to \fsketchname, resulting in fewer unnecessary aborts.
 
             \node[right=4cm] at (c |- current bounding box.east) {\ref{grouplegend}};
         \end{tikzpicture}
-    }
-    \caption[YCSB long-transaction workloads results]{YCSB long-transaction workloads results with 120 processing threads. 5\% of transactions perform 1000 reads and the rest of transactions perform 8 writes and 8 reads. The distribution is Zipfian with 0.9.}
+    } \caption[YCSB long-transaction workloads results]{YCSB long-transaction
+    workloads results with 120 processing threads. 5\% of transactions perform
+    1000 reads and the rest of transactions perform 8 writes and 8 reads. The
+    distribution is Zipfian with 0.9.}
     \label{fig:ycsb:long}
 \end{figure}
 
-\paragraph{Long-transaction workload.}  \Cref{fig:ycsb:long} shows our final
-YCSB workload, which includes some long transactions that read 1000 keys.  Most
-of the trends here are similar to the other YCSB  workloads.
+\subsubsection{Long-Transaction Workload}
+
+\Cref{fig:ycsb:long} shows our final YCSB workload, which includes some long
+transactions that read 1000 keys.  Most of the trends here are similar to the
+other YCSB  workloads.
 
 The main take-away is that STO and TicToc with approximate timestamp storage
 work just as well as their Memory variants, demonstrating that approximate
@@ -1166,7 +1177,8 @@ timestamps can handle large transactions, not just small ones.
 
 
 
-\paragraph{Approximate timestamp storage versus caching.}
+\subsubsection{Approximate Timestamp Storage Versus Caching}
+
 \Cref{fig:ycsb:spl_cache} shows how varying the SplinterDB cache size affects
 goodput of TicToc-Disk and TicToc-\psketchname.  The purpose of this experiment
 is to answer the question: can we fix the performance problems in Disk-based
@@ -1188,7 +1200,8 @@ timestamp storage is optimized for quick, in-memory access, whereas database
 caches can have high overheads due to locking, latching, and data structure
 traversals, among other things.
 
-\paragraph{Metadata Memory Usage.}
+\subsubsection{Metadata Memory Usage}
+
 We now compare the memory used to store metadata in each scheme. The Memory
 variant stored in RAM 40 bytes for each KV-pair: a 24-byte key and a 16-byte
 structure containing a read timestamp, write timestamp, and a latch.  There were
@@ -1248,7 +1261,8 @@ average memory usage of 160KiB.
 \end{figure}
 
 
-\paragraph{Disk-Cache versus \psketchname.}
+\subsubsection{Disk-Cache Versus \psketchname}
+
 \Cref{fig:ycsb:disk_cache} compares the performance of Disk-Cache with
 \psketchname. We used the same configuration for \psketchname--32KiB cache. The
 dashed line is the goodput of \psketchname. In high-contended workloads,
@@ -1642,8 +1656,8 @@ memory counterparts.
 In this chapter we introduced \emph{approximate timestamp storage}, a
 novel timestamp storage system that enables timestamp-based CC
 mechanisms to operate efficiently in modern on-disk key-value stores.
-Approximate timestmap storage provides guarantees we identified to be
-suffient for preserving the correctness of the timestmap-based CC
+Approximate timestamp storage provides guarantees we identified to be
+sufficient for preserving the correctness of the timestamp-based CC
 mechanisms we studied, while being extremely memory efficient. We
 presented the design of an approximate timestamp storage system,
 \sketchname, and implemented two of its variants, \fsketchname and

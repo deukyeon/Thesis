@@ -1,2 +1,315 @@
-{\color{orange} Insert conclusion here.}
-It seems common to include a future work section to the end of this chapter.
+\section{Summary of Contributions}
+
+This dissertation addresses a fundamental challenge in modern database systems:
+enabling efficient timestamp-based concurrency control in disk-based
+transactional databases. Through both theoretical analysis and experimental
+evaluation, we demonstrate that approximate timestamp storage represents a
+universal and future-ready approach for high-performance transaction processing
+across diverse storage technologies.
+
+Our work makes two primary contributions. First, we introduce \sketchname, a
+novel approximate timestamp storage system that enables efficient
+timestamp-based concurrency control in disk-based key-value stores. \sketchname
+combines a hash table for exact timestamps of active keys with a probabilistic
+sketch for approximate upper bounds of inactive keys, achieving the performance
+benefits of fully in-memory timestamp storage while requiring only minimal
+memory—as little as 32KB for an 80GB database. Second, we conduct a
+comprehensive analytical and experimental study demonstrating that \sketchname
+remains effective across a wide spectrum of storage technologies, from
+traditional hard disk drives with millisecond latencies to emerging CXL-based
+storage approaching DRAM-like speeds.
+
+\subsection{The \sketchname System}
+
+The first contribution establishes \sketchname as a practical solution to the
+metadata storage problem in timestamp-based concurrency control. Our design is
+grounded in a key insight: for timestamp-based protocols like STO, MVTO, and
+TicToc, overapproximating timestamps does not violate correctness—it may cause
+harmless extra aborts but preserves serializability. This insight allows us to
+use approximate data structures while maintaining all correctness guarantees.
+
+\sketchname's hybrid architecture, combining a foveated region (hash table) and
+peripheral region (sketch), ensures that active keys maintain exact timestamps
+throughout their transaction lifetime while inactive keys can be safely
+approximated. We formally prove that this approach satisfies the necessary
+properties for correctness with all three protocols we studied. Our evaluation
+demonstrates that \sketchname-based implementations achieve dramatic performance
+improvements: TicToc with \psketchname improves goodput by up to 5.9$\times$
+over disk-based timestamp storage, up to 14$\times$ over traditional 2PL, and
+reaches performance close to an idealized in-memory system.
+
+\subsection{Broad Applicability Across Storage Technologies}
+
+The second contribution establishes the universal applicability of the
+approximate timestamp storage approach. Our comprehensive evaluation across
+HDDs, SATA SSDs, NVMe SSDs, and emulated CXL-based storage reveals that
+\sketchname's benefits scale with the fundamental gap between local memory and
+remote storage access. This finding ensures that \sketchname will remain
+valuable as storage technology continues to evolve.
+
+On slow storage (HDDs and SATA SSDs), where disk I/O dominates performance,
+\sketchname eliminates the prohibitive overhead of timestamp disk accesses. Our
+results show improvements of up to 569\% on SATA SSD and 519\% on HDD compared
+to disk-based timestamp storage in high-contention, write-intensive workloads.
+Even in medium-contention scenarios where storage I/O is the primary bottleneck,
+\sketchname provides substantial improvements.
+
+On fast storage (emulated CXL-based flash), \sketchname transforms from
+primarily avoiding disk I/O to functioning as an application-specific cache for
+concurrency metadata. By keeping frequently accessed timestamps in local DRAM
+rather than on remote memory-like storage, \sketchname prevents
+microsecond-scale delays from accumulating into significant performance
+penalties. TicToc-\psketchname achieves up to 3.55$\times$ and 21.5$\times$
+higher goodput than 2PL and KR-OCC, respectively, on fast storage.
+
+\begin{table}[!t]
+\centering
+\caption{Summary of \sketchname Performance Improvements Across Storage Technologies}
+\label{tab:summary-performance}
+\begin{tabular}{lccc}
+\toprule
+Storage Type & Best Improvement vs. Disk & Best Improvement vs. 2PL & Memory Usage \\
+\midrule
+HDD & 519\% (TicToc, high-contention) & 1.8$\times$ (TicToc, write-intensive) & 32KB for 80GB DB \\
+SATA SSD & 569\% (TicToc, high-contention) & 5.89$\times$ (TicToc, write-intensive) & 32KB for 80GB DB \\
+NVMe SSD & 5.9$\times$ (TicToc) & 14$\times$ (TicToc) & 32KB for 80GB DB \\
+CXL (emulated) & N/A & 3.55$\times$ (TicToc-\psketchname vs. 2PL) & 32KB for 80GB DB \\
+\midrule
+\multicolumn{4}{l}{\footnotesize All improvements shown for TicToc-\psketchname unless otherwise noted.} \\
+\multicolumn{4}{l}{\footnotesize Memory usage represents sketch size; hash table size varies with active keys.} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\Cref{tab:summary-performance} provides a quantitative summary of \sketchname's
+performance improvements across the storage technologies we evaluated. The table
+demonstrates that \sketchname consistently delivers substantial performance gains
+regardless of storage type, with the largest improvements occurring in
+high-contention scenarios where timestamp access overhead is most pronounced.
+Notably, the memory footprint remains constant at just 32KB for an 80GB database
+across all storage technologies, demonstrating \sketchname's scalability.
+
+\section{Key Findings and Insights}
+
+Our research yields several important findings that guide both current
+deployment and future development:
+
+\subsection{Performance Characteristics}
+
+Across all evaluated storage technologies and workloads, \psketchname
+consistently outperforms both \fsketchname and disk-based timestamp storage. The
+\psketchname variant achieves goodput that is often within 20-40\% of the
+idealized Memory configuration while using only a tiny fraction of memory.
+TicToc with \psketchname emerges as the clear performance leader, significantly
+outperforming traditional concurrency control methods across all scenarios.
+
+The memory efficiency of \sketchname is remarkable: a 32KB sketch suffices for
+an 80GB database, representing less than 0.00004\% of the database size. This
+efficiency makes \sketchname practical even in memory-constrained environments
+where storing all timestamps in RAM would be infeasible.
+
+\subsection{Storage-Dependent Behavior}
+
+Our analysis reveals that the nature of \sketchname's advantages changes
+fundamentally as storage performance improves. On slow storage, \sketchname
+primarily eliminates I/O bottlenecks, achieving performance close to idealized
+in-memory systems. On fast storage, while \sketchname still outperforms
+disk-based approaches, CPU overhead from sketch operations becomes more visible,
+creating optimization opportunities for future work.
+
+Importantly, \sketchname remains beneficial across the entire storage spectrum
+because it addresses the persistent gap between local computation and remote
+storage access—a gap that exists regardless of whether storage is measured in
+milliseconds or microseconds.
+
+\subsection{Workload Sensitivity}
+
+\sketchname demonstrates consistent effectiveness across diverse workloads, from
+short transactions typical of OLTP systems to longer analytical queries.
+High-contention, write-intensive workloads show the largest improvements, but
+even medium-contention scenarios benefit substantially. Mixed workloads
+containing both short and long transactions maintain \sketchname's
+effectiveness, demonstrating its robustness.
+
+\subsection{Protocol Compatibility}
+
+Our formal analysis and experimental evaluation confirm that \sketchname
+correctly integrates with STO, MVTO, and TicToc without any algorithmic changes
+to these protocols. This plug-and-play compatibility makes adoption
+straightforward and suggests that \sketchname could similarly integrate with
+other timestamp-based protocols or future innovations in concurrency control.
+
+\section{Broader Implications}
+
+The success of \sketchname points to a broader principle: approximate metadata
+management can enable high-performance system designs that would otherwise be
+impractical. The key insight—that overapproximation preserves correctness for
+many concurrency control protocols—may find application beyond timestamp
+storage.
+
+As storage technologies continue evolving toward faster, more memory-like
+interfaces, the distinction between memory and storage blurs. \sketchname
+demonstrates how application-specific caching strategies can bridge this gap,
+providing a template for managing other types of frequently accessed metadata in
+future systems.
+
+Our work also highlights an important shift in database system design.
+Traditional systems optimized for disk I/O as the dominant bottleneck. Modern
+systems must optimize for CPU efficiency and memory hierarchy utilization.
+\sketchname exemplifies this new design paradigm by prioritizing CPU and memory
+efficiency while maintaining correctness guarantees.
+
+\section{Future Work}
+
+While \sketchname demonstrates strong performance across diverse storage
+technologies, several directions offer opportunities for further improvement and
+broader application.
+
+\subsection{Optimizations for Fast Storage}
+
+Our evaluation reveals that on fast storage (CXL-based or similar), \sketchname
+incurs CPU overhead from sketch operations, memory allocation, and key
+management that prevents it from fully matching the idealized Memory
+configuration. Future work could explore several optimization strategies:
+
+First, \emph{lock-free and wait-free algorithms} could reduce synchronization
+overhead in the sketch and hash table operations. Current implementations use
+per-bucket locks which, while correct, may become bottlenecks on fast storage
+where operations complete in nanoseconds.
+
+Second, \emph{custom memory allocators} optimized for the access patterns of
+\sketchname could reduce allocation overhead. Fast storage environments are
+CPU-bound, making efficient memory management critical.
+
+Third, \emph{hardware acceleration} could leverage modern CPU features like SIMD
+instructions for bulk sketch operations or hardware transactional memory for
+lock-free updates. Exploring how emerging CPU architectures can accelerate
+\sketchname operations presents an interesting research direction.
+
+Finally, \emph{adaptive sketch sizing} could dynamically adjust sketch size
+based on workload characteristics, reducing overhead for low-contention
+scenarios while maintaining accuracy for high-contention workloads.
+
+\subsection{Integration with Distributed Systems}
+
+This dissertation focuses on single-node systems, but many production databases
+operate in distributed environments. Extending \sketchname to distributed
+systems raises several research questions:
+
+How should timestamps be synchronized across nodes while maintaining
+\sketchname's efficiency? Distributed timestamp allocation introduces
+coordination overhead that could negate \sketchname's benefits. Research into
+lightweight distributed timestamp protocols compatible with \sketchname would be
+valuable.
+
+Can each node maintain its own \sketchname instance for local keys? This
+approach seems promising for shared-nothing architectures where transactions
+primarily access local partitions. However, cross-partition transactions may
+require different strategies.
+
+How do network latencies affect the trade-offs that make \sketchname beneficial?
+In distributed systems, network communication often dominates latency,
+potentially changing the relative importance of local timestamp access
+optimization.
+
+\subsection{Advanced Concurrency Control Protocols}
+
+While we demonstrate \sketchname's compatibility with STO, MVTO, and TicToc,
+many other timestamp-based protocols exist. Investigating compatibility with
+protocols like Serializable Snapshot Isolation (SSI), variations of OCC with
+timestamps, or hybrid approaches could broaden \sketchname's applicability.
+
+More fundamentally, could \sketchname inspire new concurrency control protocols
+designed explicitly for approximate timestamp storage? The guarantees provided
+by \sketchname may enable protocols that are not feasible with exact timestamps.
+
+\subsection{Theoretical Analysis and Bounds}
+
+Our heuristic analysis of sketch sizing provides practical guidelines, but
+tighter theoretical bounds would strengthen the foundation. Can we provide
+provable guarantees on abort rates given sketch size and workload
+characteristics? Understanding the worst-case and expected-case behavior of
+\sketchname under adversarial workloads would provide stronger guarantees.
+
+The relationship between sketch size, contention level, transaction length, and
+abort rates deserves deeper mathematical analysis. Such analysis could inform
+automatic tuning mechanisms that adapt \sketchname parameters to workload
+characteristics.
+
+\subsection{Integration with Existing Database Systems}
+
+While we evaluate \sketchname with SplinterDB, integration with other storage
+systems would validate broader applicability. Integrating \sketchname with
+LSM-tree based systems like RocksDB, B-tree systems like PostgreSQL, or other
+storage architectures could reveal system-specific optimization opportunities.
+
+Particularly interesting would be integration with systems that already maintain
+some form of timestamp or version metadata, such as multi-version concurrency
+control systems. Could \sketchname replace or enhance existing timestamp
+management mechanisms?
+
+\subsection{Other Storage Technologies}
+
+Our evaluation covers HDD, SATA SSD, NVMe SSD, and emulated CXL-based storage,
+but storage technology continues evolving. Evaluating \sketchname with emerging
+technologies like 3D XPoint (Optane), persistent memory, or future memory-like
+storage would validate its continued relevance.
+
+As storage becomes faster and more memory-like, understanding the point at which
+approximate timestamp storage becomes unnecessary would provide important design
+guidance. This transition point may depend on workload characteristics, system
+architecture, and economic factors.
+
+\subsection{Beyond Timestamps: General Approximate Metadata}
+
+The principle underlying \sketchname—that approximate metadata can preserve
+correctness for certain protocols—may apply beyond timestamps. Could similar
+techniques optimize storage of locks, version numbers, conflict detection
+metadata, or other concurrency control state?
+
+Exploring the space of metadata that can be safely approximated could yield
+additional optimization opportunities. This direction requires identifying
+metadata properties that allow approximation without violating correctness.
+
+\subsection{Workload-Aware Optimization}
+
+Our evaluation demonstrates that \sketchname's effectiveness varies with
+workload characteristics. Future work could develop \emph{adaptive \sketchname}
+variants that automatically adjust their behavior based on observed workload
+patterns. For example, sketch size could adapt to contention levels, eviction
+policies could optimize for observed access patterns, or the hash table could
+resize based on active key counts.
+
+Machine learning techniques could potentially optimize \sketchname parameters
+based on historical workload data, automatically tuning for best performance
+without manual intervention.
+
+\section{Concluding Remarks}
+
+This dissertation demonstrates that approximate timestamp storage enables
+efficient timestamp-based concurrency control in disk-based databases while
+requiring minimal memory. Through the design and evaluation of \sketchname, we
+establish that this approach remains effective across a wide spectrum of storage
+technologies, from traditional hard drives to emerging memory-like storage.
+
+The key contribution of this work is not merely a new data structure, but a
+demonstration that approximate metadata management can unlock high-performance
+system designs that would otherwise be impractical. As storage technology
+continues evolving and the gap between memory and storage narrows, techniques
+like \sketchname that optimize metadata access will become increasingly
+important for achieving optimal database performance.
+
+\sketchname represents a practical, deployable solution to a fundamental
+challenge in modern database systems. By requiring only 32KB of memory for an
+80GB database while achieving performance close to idealized in-memory systems,
+\sketchname makes advanced concurrency control protocols accessible to
+real-world database deployments. The universal applicability of \sketchname
+across storage technologies ensures its relevance both today and as storage
+continues evolving.
+
+More broadly, this work contributes to a paradigm shift in database system
+design, from optimizing for disk I/O to optimizing for CPU efficiency and memory
+hierarchy utilization. As this shift continues, approximate metadata management
+techniques will play an increasingly central role in high-performance database
+systems.
+
