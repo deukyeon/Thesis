@@ -25,16 +25,6 @@
 
 \algblockdefx{Atomic}{EndAtomic}{\textbf{begin atomic section}}{\textbf{end atomic section}}
 
-\makeatletter
-\newcommand{\algmargin}{\the\ALG@thistlm}
-\makeatother
-\newlength{\ifwidth}
-\settowidth{\ifwidth}{\algorithmicif\ }
-\algdef{SE}[parIF]{parIf}{EndparIf}[1]
-  {\parbox[t]{\dimexpr\linewidth-\algmargin}{%
-     \hangindent\ifwidth\strut\algorithmicif\ #1\ \algorithmicthen\strut}}{\algorithmicend\ \algorithmicif}
-\algdef{Ce}[parELSE]{parIF}{parElse}{EndparIf}{\algorithmicelse}
-
 \newcommand{\declareKeyword}[1]{\expandafter\newcommand\csname #1\endcsname{\textsc{#1}\xspace}}
 \declareKeyword{lock}
 \declareKeyword{TryLock}

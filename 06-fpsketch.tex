@@ -151,7 +151,7 @@ sketch. Depending on the eviction mechanism chosen, these keys may either be
 evicted immediately or kept in the hash table until evicted due to space
 pressure using, e.g. LRU.
 
-\begin{algorithm}[t]
+\begin{algorithm}[h!]
     \small
     \begin{algorithmic}
         \Struct{Sketch}
@@ -221,7 +221,7 @@ rows aligning with the number of hash functions employed.
 \subsection{\sketchname Operations}
 
 
-\begin{algorithm}[t]
+\begin{algorithm}[h!]
     \small
     \begin{algorithmic}
         \Struct{\sketchname{}}
@@ -403,7 +403,7 @@ per key (per version in MVTO's case).
 
 \subsection{TicToc}
 
-\begin{algorithm}[t]
+\begin{algorithm}[htbp]
     \small
     \begin{algorithmic}[1]
         \Procedure{Read}{database $D$, \sketchname $S$, transaction $T$, key $k$}
@@ -434,13 +434,13 @@ per key (per version in MVTO's case).
         \For{$k \in T.R$}
         \Atomic
         \If{$T.R[k].rts < T.\commitTime$}
-        \parIf{$T.R[k].wts \not= S.\textsc{Get}(k).wts \vee (S.\textsc{Get}(k).rts \leq T.\commitTime \wedge \locked(k) \wedge k \not\in T.W)$} \label{alg:tictoc:abort-test}
+        \If{$T.R[k].wts \not= S.\textsc{Get}(k).wts \vee (S.\textsc{Get}(k).rts \leq T.\commitTime \wedge \locked(k) \wedge k \not\in T.W)$} \label{alg:tictoc:abort-test}
         \State \abort \label{alg:tictoc:abort}
-        \parElse
+        \Else
         \Assign{$curr$}{$S.\textsc{Get}(k)$}
         \Assign{$curr.rts$}{$\max(T.\commitTime, curr.rts)$}
         \State $S.\textsc{Put}(k, curr)$
-        \EndparIf
+        \EndIf
         \EndIf
         \EndAtomic
         \EndFor
@@ -500,7 +500,7 @@ and \Cref{alg:tictoc:remove}.
 
 \subsection{STO}
 
-\begin{algorithm}[t]
+\begin{algorithm}[htbp]
     \small
     \begin{algorithmic}[1]
         \Procedure{Begin}{global timestamp $*c$, transaction $T$}
@@ -1148,7 +1148,7 @@ timestamps can handle large transactions, not just small ones.
                     ymajorgrids=true,
                     enlarge x limits = 0.25,
                     legend columns=1,
-                    legend entries={{\ssmall Disk} {\ssmall \psketchname}},
+                    legend entries={{\ssmall \psketchname}, {\ssmall Disk}},
                     legend to name=grouplegend,
                     label style={font=\footnotesize},
                     ticklabel style={font=\ssmall},
@@ -1156,14 +1156,14 @@ timestamps can handle large transactions, not just small ones.
 
                 % graph [1,1] high
                 \nextgroupplot[title={\small{High-Contended (zipf=0.99)}}, title style={xshift=-10pt}, xlabel={SplinterDB Cache Size (GB)}, ylabel={Goodput (KTPS)}]
-                \addplot[Disk-LineStyle] coordinates {(6, 49.263467) (12, 69.5672) (18, 75.883167) (24, 81.314367) (30, 81.7691) (36, 81.4466)};
                 \addplot[FPSketch-LineStyle] coordinates {(6, 115.33) (12, 175.96) (18, 193.158333) (24, 195.850333) (30, 197.279667) (36, 199.209)};
+                \addplot[Disk-LineStyle] coordinates {(6, 49.263467) (12, 69.5672) (18, 75.883167) (24, 81.314367) (30, 81.7691) (36, 81.4466)};
                 \coordinate (top) at (rel axis cs:0,1);% coordinate at top of the first plot
 
                 % graph [1,1] medium
                 \nextgroupplot[title={\small{Medium-Contended (zipf=0.6)}}, xlabel={SplinterDB Cache Size (GB)}]
-                \addplot[Disk-LineStyle] coordinates {(6, 29.168467) (12, 47.3736) (18, 59.791367) (24, 71.666667) (30, 86.460567) (36, 103.74)};
                 \addplot[FPSketch-LineStyle] coordinates {(6, 45.608067) (12, 74.820133) (18, 96.687467) (24, 128.449) (30, 169.679) (36, 215.528)};
+                \addplot[Disk-LineStyle] coordinates {(6, 29.168467) (12, 47.3736) (18, 59.791367) (24, 71.666667) (30, 86.460567) (36, 103.74)};
                 \coordinate (bot) at (rel axis cs:1,0);% coordinate at bottom of the last plot
             \end{groupplot}
             \coordinate (c) at ($(top)!.5!(bot)$);
