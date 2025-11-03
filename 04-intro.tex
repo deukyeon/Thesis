@@ -1,11 +1,15 @@
 \section{The Enduring Challenge of Concurrency Control in On-Disk Databases} 
 
-Achieving fast transaction processing in databases that store their data on disk
-is difficult because there is a basic conflict between keeping data consistent
-and getting high performance. To handle multiple transactions safely, databases
-use Concurrency Control (CC) methods that make sure the results are as if the
-transactions happened one after another. For many years, choosing the right CC
-method has forced system designers to accept a tough trade-off.
+Achieving high-performance transaction processing in disk-based databases is
+challenging because there is an inherent tension between ensuring data
+consistency and maximizing performance. To safely execute multiple transactions
+at once, databases rely on Concurrency Control (CC) techniques, which guarantee
+that the outcome matches some serial order of
+transactions~\cite{rocksdb,cassandra,mongodb,couchbase,redis,berkeleydb,lmdb}.
+As a result, a great deal of research has focused on creating effective CC
+mechanisms~\cite{yu2016tictoc,wolf2015evaluation,tu13silo,plor,polaris,2PLFS,chardonnay,bamboo}.
+For decades, selecting an appropriate CC method has required system designers to
+grapple with a difficult balance.
 
 On one side, traditional lock-based methods like Two-Phase Locking
 (2PL)~\cite{eswaran1976notions} are common. These methods do not need much
