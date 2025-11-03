@@ -205,19 +205,6 @@ More fundamentally, could \sketchname inspire new concurrency control protocols
 designed explicitly for approximate timestamp storage? The guarantees provided
 by \sketchname may enable protocols that are not feasible with exact timestamps.
 
-\subsubsection{Theoretical Analysis and Bounds}
-
-Our heuristic analysis of sketch sizing provides practical guidelines, but
-tighter theoretical bounds would strengthen the foundation. Can we provide
-provable guarantees on abort rates given sketch size and workload
-characteristics? Understanding the worst-case and expected-case behavior of
-\sketchname under adversarial workloads would provide stronger guarantees.
-
-The relationship between sketch size, contention level, transaction length, and
-abort rates deserves deeper mathematical analysis. Such analysis could inform
-automatic tuning mechanisms that adapt \sketchname parameters to workload
-characteristics.
-
 \subsubsection{Integration with Existing Database Systems}
 
 While we evaluate \sketchname with SplinterDB, integration with other storage
@@ -240,6 +227,22 @@ As storage becomes faster and more memory-like, understanding the point at which
 approximate timestamp storage becomes unnecessary would provide important design
 guidance. This transition point may depend on workload characteristics, system
 architecture, and economic factors.
+
+\subsubsection{Evaluation on Real CXL-based SSDs}
+
+While our study includes a simulation of CXL-class latencies, an important next
+step is to evaluate \sketchname on production CXL-connected devices. Real
+hardware introduces effects that are difficult to capture in simulation,
+including PCIe/CXL fabric contention, device firmware policies (e.g., interrupt
+moderation, internal queueing, and thermal throttling), host driver and I/O
+stack interactions, and tail-latency behaviors under bursty workloads. A
+systematic experimental campaign on commercially available CXL-based SSDs and
+memory expanders would (1) validate our analytical model and calibrate
+constants, (2) quantify head- and tail-latency distributions and CPU overheads
+at varying queue depths, NUMA placements, and PCIe topologies, and (3) surface
+optimization opportunities specific to CXL (e.g., larger submission queues,
+batching, and polling). These results would strengthen external validity and
+refine guidance for deploying \sketchname on next-generation storage.
 
 \subsubsection{Beyond Timestamps: General Approximate Metadata}
 
