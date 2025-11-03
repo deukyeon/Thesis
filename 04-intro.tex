@@ -87,9 +87,9 @@ With the problem of metadata I/O removed, the high-performance concurrency
 control protocols can be adapted for disk-based databases. Experiments with the
 SplinterDB key-value store~\cite{splinterdb} demonstrate that \sketchname has a
 large impact: using \sketchname, advanced protocols like TicToc can reach speeds
-up to 14 times faster than traditional 2PL and KR-OCC~\cite{kung1981optimistic},
-and up to 5.9 times faster than standard disk-based timestamp methods on some
-workloads.
+up to 14$\times$ faster than traditional 2PL and
+KR-OCC~\cite{kung1981optimistic}, and up to 5.9$\times$ faster than standard
+disk-based timestamp methods on some workloads.
 
 \section{Research Question: \sketchname Applicability}
 
@@ -100,13 +100,12 @@ Separating the concurrency control logic from storage performance seems
 powerful, but this has not been evaluated across all types of storage, from
 older, slower devices to the most modern memory-like storage.
 
-The second main contribution of this dissertation addresses this issue directly. It
-conducts a thorough theoretical and analytical study of the \sketchname approach
-on a variety of storage devices. The analysis explores how useful the approach
-remains when the performance gap between memory and disk access changes
-dramatically. The goal is to determine if the key idea behind \sketchname is
-broadly reliable and future-proof, or if it is mainly a solution for today's
-specific hardware.
+The second main contribution of this dissertation addresses this issue directly.
+It conducts a thorough analytical study of the \sketchname approach on a variety
+of storage devices. The analysis explores how useful the approach remains when
+the performance gap between memory and disk access changes dramatically. The
+goal is to determine if the key idea behind \sketchname is broadly reliable and
+future-proof, or if it is mainly a solution for today's specific hardware.
 
 \section{A Taxonomy of Storage Performance}
 
@@ -257,7 +256,7 @@ The rest of this dissertation is organized as follows:
 
     \item[Chapter \ref{chapter:five}: Related Work]
     This chapter reviews related research on disk-based concurrency control,
-    approximate data structures in databases, and tiered memory management.
+    approximate data structures in databases and other areas.
 
     \item[Chapter \ref{chapter:six}: Conclusion and Future Work]
     This chapter summarizes the dissertation's contributions, restates the main
