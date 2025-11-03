@@ -281,12 +281,12 @@ write-optimized structures have become increasingly popular for on-disk storage
 systems. These structures are designed to maximize write performance by batching
 and organizing writes efficiently.
 
-A key property of these structures is the \textbf{Query/Insert Asymmetry}: they
-can ingest new data (writes) orders of magnitude faster than they can service
-random queries (reads). For example, SplinterDB~\cite{splinterdb}, which uses a
-write-optimized structure called a \bets~\cite{BrodalFa03}, can perform over 2
-million random insertions per second but only about 500,000 random queries per
-second.
+A key property of these structures is the \textbf{Query/Insert
+Asymmetry}~\cite{bender2015introduction}: they can ingest new data (writes)
+orders of magnitude faster than they can service random queries (reads). For
+example, SplinterDB~\cite{splinterdb}, which uses a write-optimized structure
+called a \bets~\cite{BrodalFa03}, can perform over 2 million random insertions
+per second but only about 500,000 random queries per second.
 
 This asymmetry is crucial for understanding the performance implications of
 different concurrency control approaches. When timestamp-based protocols store
@@ -364,13 +364,14 @@ large-scale database systems. Real-world deployments, such as Facebook's
 RocksDB~\cite{rocksdb} instances, demonstrate that the memory required for
 timestamps alone could consume a substantial portion of available RAM.
 
-For example, with key-value pairs averaging less than 100 bytes, storing two
-8-byte timestamps per pair would require approximately 16\% of the data size in
+For example, with key-value pairs averaging less than 100
+bytes~\cite{DBLP:conf/fast/CaoDVD20,AtikogluXuFr12}, storing two 8-byte
+timestamps per pair would require approximately 16\% of the data size in
 additional memory. However, many production systems operate with RAM-to-disk
-ratios of less than 5\%, sometimes as little as 3\%. Even in scenarios with
-larger key-value pairs or more abundant RAM, timestamps would still consume a
-significant portion of memory that could otherwise be used for caching or other
-purposes.
+ratios of less than 5\%, sometimes as little as
+3\%~\cite{DBLP:conf/fast/CaoDVD20}. Even in scenarios with larger key-value
+pairs or more abundant RAM, timestamps would still consume a significant portion
+of memory that could otherwise be used for caching or other purposes.
 
 \subsection{The Promise and the Pitfall}
 \label{sec:background:benchmarks}
