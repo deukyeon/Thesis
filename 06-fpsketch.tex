@@ -659,7 +659,8 @@ experiments:
     \item \sketchname-based versions of STO, MVTO, and TicToc outperform
           versions that keep timestamps on disk in all our experiments, often by
           dramatic margins.  For example, \sketchname improves TicToc goodput by
-          up to 5.9x, STO by up to 1.8x, and MVTO by over 160x.
+          up to 5.9$\times$, STO by up to 1.8$\times$, and MVTO by over
+          160$\times$.
     \item Similarly, \psketchname-based protocols can offer up to 2x greater
           goodput than \fsketchname-based ones. Furthermore, TicToc and STO with
           \psketchname are never substantially slower than the \fsketchname
@@ -711,7 +712,7 @@ all aborts and commits.
 We implement and evaluate several CC mechanisms, including all three
 timestamp-based CCs described in~\Cref{sec:background:timestamp-based-cc} (STO,
 MVTO, and TicToc), and two classic CCs which are widely used in disk-based
-databases: two-phase locking (2PL) and Kung-Robinson Optimistic Concurrency
+databases: Two-Phase Locking (2PL) and Kung-Robinson Optimistic Concurrency
 Control (OCC). Unlike timestamp-based CCs, these two classic mechanisms do not
 require maintaining per-record metadata, thus avoiding disk I/O overhead for
 metadata access. For 2PL, we employ a no-wait policy after evaluating multiple

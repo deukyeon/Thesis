@@ -974,21 +974,21 @@ evolve toward lower latencies.
 
 This section presents \sketchname's performance on fast storage, revealing the following:
 \begin{itemize}
-    \item On fast storage (emulated CXL with latencies 100$\times$ faster than SATA
-    SSD and 10$\times$ faster than NVMe SSD), \sketchname demonstrates dramatic
-    performance advantages over traditional concurrency control. TicToc-\psketchname
-    achieves up to 3.55$\times$ and 21.5$\times$ higher goodput than 2PL and KR-OCC
-    in high-contention workloads, with up to 286\% improvement over TicToc-Disk.
-    STO-\psketchname achieves up to 11.9--70.6$\times$ more goodput than 2PL/KR-OCC
-    in TPC-C, demonstrating that timestamp-based methods excel when storage latency
-    is no longer the bottleneck.
+    \item On fast storage (emulated DRAM-like latency storage), \sketchname
+    demonstrates dramatic performance advantages over traditional concurrency
+    control. TicToc-\psketchname achieves up to 3.55$\times$ and 21.5$\times$
+    higher goodput than 2PL and KR-OCC in high-contention workloads, with up to
+    286\% improvement over TicToc-Disk. STO-\psketchname achieves up to
+    11.9--70.6$\times$ more goodput than KR-OCC (and up to 1.41$\times$ more
+    than 2PL) in TPC-C, demonstrating that timestamp-based methods excel when
+    storage latency is no longer the bottleneck.
     
     \item Performance improvements extend consistently across synthetic and
     realistic benchmarks. In write-intensive workloads, TicToc-\psketchname is
     2.12$\times$ and 3.16$\times$ faster than 2PL and KR-OCC, with 200\% improvement
     over TicToc-Disk. For mixed-transaction workloads, TicToc-\psketchname achieves
     1.78$\times$ and 24.3$\times$ higher throughput than 2PL and KR-OCC, with 77\%
-    improvement over TicToc-Disk. TPC-C results show 25--44.5\% and 105--150\%
+    improvement over TicToc-Disk. TPC-C results show 34--45\% and 107--150\%
     improvements over Disk variants for TicToc and STO, respectively, across all
     contention levels.
     
@@ -1469,7 +1469,7 @@ small transactions on fast storage as well.
 
                 % graph [1,1]
                 \nextgroupplot[title={4 warehouses},YCSBThroughputBarChartPlot, ylabel={Goodput (KTPS)}]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 25.981933)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 40.3478)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 4.766923)};
                 \addplot[Memory-BarStyle] coordinates {(1.06875, 59.3193) (3, 54.249267)};
                 \addplot[Disk-BarStyle] coordinates {(1.06875, 23.122733) (3, 29.668767)};
@@ -1480,7 +1480,7 @@ small transactions on fast storage as well.
 
                 % graph [1,2]
                 \nextgroupplot[title={8 warehouses}, YCSBThroughputBarChartPlot]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 40.674833)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 60.317733)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 2.690287)};
                 \addplot[Memory-BarStyle] coordinates {(1.06875, 95.317467) (3, 85.340067)};
                 \addplot[Disk-BarStyle] coordinates {(1.06875, 33.973233) (3, 41.828467)};
@@ -1490,7 +1490,7 @@ small transactions on fast storage as well.
 
                 % graph [1,3]
                 \nextgroupplot[title={16 warehouses},YCSBThroughputBarChartPlot]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 60.0792)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 90.617967)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 1.714923)};
                 \addplot[Memory-BarStyle] coordinates {(1.06875, 126.781667) (3, 113.534667)};
                 \addplot[Disk-BarStyle] coordinates {(1.06875, 49.8068) (3, 62.967367)};
@@ -1501,7 +1501,7 @@ small transactions on fast storage as well.
 
                 % graph [1,4] 32wh
                 \nextgroupplot[title={32 warehouses},YCSBThroughputBarChartPlot]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 91.371733)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 118.859)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 1.768823)};
                 \addplot[Memory-BarStyle] coordinates {(1.06875, 136.254) (3, 128.511333)};
                 \addplot[Disk-BarStyle] coordinates {(1.06875, 60.4086) (3, 77.2502)};
@@ -1513,7 +1513,7 @@ small transactions on fast storage as well.
 
                 % graph [2,1] 4 wh
                 \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.343923)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.265972)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.582189)};
                 \addplot[Memory-BarStyle] coordinates {(1.06875, 0.308396) (3, 0.358287)};
                 \addplot[Disk-BarStyle] coordinates {(1.06875, 0.300735) (3, 0.362429)};
@@ -1523,7 +1523,7 @@ small transactions on fast storage as well.
 
                 % graph [2,2] 8 wh
                 \nextgroupplot[AbortRateBarChartPlot]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.26031)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.197449)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.619373)};
                 \addplot[Memory-BarStyle] coordinates {(1.06875, 0.259365) (3, 0.328457)};
                 \addplot[Disk-BarStyle] coordinates {(1.06875, 0.249634) (3, 0.322022)};
@@ -1533,7 +1533,7 @@ small transactions on fast storage as well.
 
                 % graph [2,3] 16 wh
                 \nextgroupplot[AbortRateBarChartPlot]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.181629)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.130951)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.626907)};
                 \addplot[Memory-BarStyle] coordinates {(1.06875, 0.194619) (3, 0.282973)};
                 \addplot[Disk-BarStyle] coordinates {(1.06875, 0.189055) (3, 0.271532)};
@@ -1543,7 +1543,7 @@ small transactions on fast storage as well.
 
                 % graph [2,4] 32 wh
                 \nextgroupplot[AbortRateBarChartPlot]
-                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.133359)};
+                \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.107609)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.512981)};
                 \addplot[Memory-BarStyle] coordinates {(1.06875, 0.040332) (3, 0.202382)};
                 \addplot[Disk-BarStyle] coordinates {(1.06875, 0.067348) (3, 0.215892)};
@@ -1562,19 +1562,20 @@ small transactions on fast storage as well.
 
 \Cref{fig:tpcc_fast} shows the TPC-C benchmark results on fast storage. The
 figure includes both goodput and abort rates for different concurrency control
-methods as we change the number of warehouses (which also changes the
-contention level). Similar to the YCSB results, both \psketchname and
-\fsketchname always have lower goodput than the Memory version because of extra
-overheads, but they are still much better than the Disk-based methods.
+methods as we change the number of warehouses (which also changes the contention
+level). Similar to the YCSB results, both \psketchname and \fsketchname always
+have lower goodput than the Memory version because of extra overheads, but they
+are still much better than the Disk-based methods.
 
-TicToc-\psketchname achieves up to 9 to 58.3$\times$ higher goodput than
-2PL/KR-OCC, and about 25--44.5\% higher goodput than TicToc-Disk at all
-contention levels. STO-\psketchname achieves up to 11.9 to 70.6$\times$ more
-goodput than 2PL/KR-OCC, and about 105--150\% improvement over STO-Disk in all
-cases. The TPC-C benchmark consists of both short and long transactions, and STO
-achieves higher goodput than TicToc for long transactions. This matches our
-earlier findings from the YCSB long-transaction workload in
-\Cref{fig:ycsb:long_fast}.
+TicToc-\psketchname achieves up to 9 to 58.3$\times$ higher goodput than KR-OCC
+(though it can be slower than 2PL at lower contention levels with
+0.87--1.06$\times$ relative performance), and about 34--45\% higher goodput
+than TicToc-Disk at all contention levels. STO-\psketchname achieves up to 11.9
+to 70.6$\times$ more goodput than KR-OCC and up to 1.41$\times$ more than 2PL,
+and about 107--150\% improvement over STO-Disk in all cases. The TPC-C benchmark
+consists of both short and long transactions, and STO achieves higher goodput
+than TicToc for long transactions. This matches our earlier findings from the
+YCSB long-transaction workload in \Cref{fig:ycsb:long_fast}.
 
 Comparing \psketchname and \fsketchname, we see that \psketchname always has
 better goodput at every contention level. This is because \psketchname has less
