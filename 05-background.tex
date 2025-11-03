@@ -304,15 +304,14 @@ used to reduce the memory requirements of the data structure.
 \subsection{Count-Min Sketch}
 \label{sec:background:count-min-sketch}
 
-The count-min sketch (CMS)~\citep{CormodeMu05} was originally proposed
-as a data structure for providing approximate counts of the occurances
-of each item in a data stream.  The CMS maintains a two-dimensional
-table $A$ of height $h$ and width $w$. Upon observing an item $x$ in
-the stream, the CMS increments $A[i][h_i(x)]$ for each row $i$, where
-$h_i$ are all hash functions. The CMS estimates the number of
-occurances of an item $x$ as $CMS[x] = min_iA[i][h_i(x)]$.  The CMS
-obviously nver underestimates the count of an item, and guarantees
-that
+The count-min sketch (CMS)~\citep{CormodeMu05} was originally proposed as a data
+structure for providing approximate counts of the occurrences of each item in a
+data stream.  The CMS maintains a two-dimensional table $A$ of height $h$ and
+width $w$. Upon observing an item $x$ in the stream, the CMS increments
+$A[i][h_i(x)]$ for each row $i$, where $h_i$ are all hash functions. The CMS
+estimates the number of occurrences of an item $x$ as $CMS[x] =
+min_iA[i][h_i(x)]$.  The CMS obviously never underestimates the count of an
+item, and guarantees that
 \[
   \Pr[CMS[x] \leq c_x + n/w ] \geq 1 - e^{-d},
 \]
@@ -387,14 +386,14 @@ concurrency control in on-disk systems.
             \begin{groupplot}[group style={group size=1 by 1,
                             /pgf/bar width=3.6pt},
                     height = 4cm,
-                    width = 9cm,
+                    width = 10cm,
                     ybar= 2*\pgflinewidth,
                     xtick=data,
                     xticklabels={
-                            \shortstack{High-contended \\ Read-intensive},
-                            \shortstack{High-contended \\ Write-intensive},
-                            \shortstack{Medium-contended \\ Read-intensive},
-                            \shortstack{Medium-contended \\ Write-intensive}
+                            \shortstack{High-contention \\ Read-intensive},
+                            \shortstack{High-contention \\ Write-intensive},
+                            \shortstack{Medium-contention \\ Read-intensive},
+                            \shortstack{Medium-contention \\ Write-intensive}
                         },
                     ticklabel style={font=\tiny},
                     ymajorgrids=true,

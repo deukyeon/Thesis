@@ -1,18 +1,19 @@
 Storage technologies in production environments span several orders of magnitude
-in performance---from traditional hard disk drives (HDDs) with millisecond
-latencies~\cite{samsung2013ssd} to emerging byte-addressable storage like
-CXL-based flash approaching DRAM-like speeds~\cite{yang2023overcoming}. Since
-\sketchname enables modern timestamp-based concurrency control for disk-based
-key-value stores, evaluating its effectiveness across this performance spectrum
-is critical for understanding both current deployment opportunities and future
-applicability as storage technologies continue to evolve.
+in performance---from traditional hard disk drives (HDDs) with the order of
+millisecond latencies~\cite{samsung2013ssd} to emerging byte-addressable storage
+like CXL-based SSDs approaching DRAM-like speeds~\cite{yang2023overcoming}.
+Since \sketchname enables modern timestamp-based concurrency control for
+disk-based key-value stores, evaluating its effectiveness across this
+performance spectrum is critical for understanding both current deployment
+opportunities and future applicability as storage technologies continue to
+evolve.
 
-This chapter presents a comprehensive evaluation across slow storage (SATA SSD and 
-HDD) in Section~\ref{sec:slow-storage} and fast storage (emulated CXL-based flash) 
-in Section~\ref{sec:fast-storage} to reveal how \sketchname's benefits and 
-trade-offs evolve with storage characteristics. Our analysis demonstrates that 
-\sketchname remains effective across this wide range, though the nature of its 
-advantages changes fundamentally as storage performance improves.
+This chapter presents a comprehensive evaluation across slow storage (SATA SSD
+and HDD) in Section~\ref{sec:slow-storage} and fast storage (simulated CXL-based
+SSDs) in Section~\ref{sec:fast-storage} to reveal how \sketchname's benefits
+and trade-offs evolve with storage characteristics. Our analysis demonstrates
+that \sketchname remains effective across this wide range, though the nature of
+its advantages changes fundamentally as storage performance improves.
 
 
 \section{Slow Storage}\label{sec:slow-storage}
@@ -29,18 +30,20 @@ We use the same workloads and evaluation methods as in Section~\ref{sec:eval}.
 For slow storage setups, we run experiments using both SATA SSD and HDD. The
 SATA SSD experiments are run on the same type of machine as the NVMe SSD tests,
 with only the storage hardware changed. However, for the HDD tests, we use a
-different machine because CloudLab does not offer machines with HDDs. Using SATA
-SSD allows us to compare results fairly with NVMe SSD and other faster storage.
-In contrast, the HDD experiments show how \sketchname performs on a real hard
-disk, helping us understand its behavior in truly slow storage situations.
+different machine because CloudLab does not offer the same machines with HDDs.
+Using SATA SSD allows us to compare results fairly with NVMe SSD and other
+faster storage. The HDD experiments demonstrate how \sketchname performs on a
+real HDD disk, helping us understand its behavior in truly slow storage
+situations.
 
 This section evaluates \sketchname on slow storage media, revealing the following:
 \begin{itemize}
-    \item \sketchname variants achieve significant performance improvements across
-    both SATA SSD and HDD, with up to 569\% and 519\% higher goodput than Disk
-    variants in write-intensive, high-contention workloads on SATA SSD and HDD,
-    respectively. TicToc-\psketchname outperforms 2PL and KR-OCC by up to 589\% and
-    152\% on SATA SSD, and achieves 1.8$\times$ faster than KR-OCC on HDD.
+    \item \sketchname variants achieve significant performance improvements
+    across both SATA SSD and HDD, with up to 569\% and 519\% higher goodput than
+    Disk variants in write-intensive, high-contention workloads on SATA SSD and
+    HDD, respectively. TicToc-\psketchname outperforms 2PL and KR-OCC by up to
+    6.89$\times$ and 2.52$\times$ on SATA SSD, and achieves 1.8$\times$ faster
+    than KR-OCC on HDD.
     
     \item \sketchname demonstrates effectiveness across diverse workload types,
     with up to 60\% higher goodput than Disk variants and up to 24\% and 59\% over
@@ -55,37 +58,6 @@ This section evaluates \sketchname on slow storage media, revealing the followin
 \subsection{SATA SSD}
 
 \subsubsection{YCSB Small-Transaction Workloads}
-
-Figure~\ref{fig:ycsb:slow_ssd} presents the goodput of all our timestamp-based
-concurrency control (CC) variants on four YCSB small-transaction workloads using
-slow SSD storage. The patterns in the results are similar to those shown in
-Section~\ref{sec:eval} for NVMe SSD. The \sketchname variants regularly achieve
-goodput very close to the Memory setup, which shows that they remain effective
-even when storage is slower.
-
-In read-intensive workloads, the \sketchname variants (\fsketchname and
-\psketchname) almost match the goodput of the Memory setup. They improve goodput
-by as much as 39\% compared to the Disk variant when contention is high, and up
-to 23\% better in medium-contention situations. The TicToc-\psketchname setup in
-particular improves goodput by 65\% over 2PL and by 19\% over KR-OCC in
-workloads with high contention.
-
-For write-intensive workloads, the difference in goodput becomes even greater.
-Here, the \sketchname variants (\fsketchname and \psketchname) again produce
-goodput close to the Memory variant. In high-contention cases, they boost
-goodput by up to 569\% over the Disk variant, and by up to 119\% when contention
-is medium. The TicToc-\psketchname configuration shows especially strong
-results, delivering 589\% and 152\% higher goodput than 2PL and KR-OCC,
-respectively, for high-contention workloads.
-
-TicToc is a highly concurrent CC method that uses timestamps. When combined with
-\sketchname, TicToc achieves the best performance in all workloads. This is
-because \sketchname removes the need to frequently access timestamps on disk,
-which lessens storage delays. \sketchname is especially helpful for
-write-intensive, high-contention workloads, because these workloads consist of
-quick operations enabled by SplinterDB's fast write speed and high cache hit
-rate even though storage is slow.
-
 
 
 \begin{figure}[!t]
@@ -196,17 +168,48 @@ rate even though storage is slow.
             \coordinate (cc2) at ($(top)!.75!(bot)$);
 
             \node[above] at (c |- current bounding box.north) {\ref{grouplegend}};
-            \node[below] at (cc1 |- current bounding box.south) {(a) High-contended YCSB (zipf=0.99)};
-            \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contended YCSB (zipf=0.6)};
+            \node[below] at (cc1 |- current bounding box.south) {(a) High-contention YCSB (zipf=0.99)};
+            \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contention YCSB (zipf=0.6)};
         \end{tikzpicture}
     } \caption[YCSB small-transaction workloads results on slow SSD]{YCSB
     small-transaction workloads results with 120 processing threads on slow SSD.
     In write-intensive workloads, each transaction performs 8 reads and 8
     writes. In read-intensive workloads, each transaction performs 15 reads and
-    1 write. Note that, in the medium-contended workload, several variants have
+    1 write. Note that, in the medium-contention workload, several variants have
     abort rates very close to 0.}
     \label{fig:ycsb:slow_ssd}
 \end{figure}
+
+Figure~\ref{fig:ycsb:slow_ssd} presents the goodput of all our timestamp-based
+concurrency control (CC) variants on four YCSB small-transaction workloads using
+slow SSD storage. The patterns in the results are similar to those shown in
+Section~\ref{sec:eval} for NVMe SSD. The \sketchname variants regularly achieve
+goodput very close to the Memory setup, which shows that they remain effective
+even when storage is slower.
+
+In read-intensive workloads, the \sketchname variants (\fsketchname and
+\psketchname) almost match the goodput of the Memory setup. They improve goodput
+by as much as 39\% compared to the Disk variant when contention is high, and up
+to 23\% better in medium-contention situations. The TicToc-\psketchname setup in
+particular is 1.65$\times$ and 1.19$\times$ faster than 2PL and KR-OCC,
+respectively, in workloads with high contention.
+
+For write-intensive workloads, the difference in goodput becomes even greater.
+Here, the \sketchname variants (\fsketchname and \psketchname) again produce
+goodput close to the Memory variant. In high-contention cases, they boost
+goodput by up to 569\% over the Disk variant, and by up to 119\% when contention
+is medium. The TicToc-\psketchname configuration shows especially strong
+results, delivering 6.89$\times$ and 2.52$\times$ higher goodput than 2PL and
+KR-OCC, respectively, for high-contention workloads.
+
+TicToc is a timestamp-based CC protocol designed for high concurrency. Paired
+with \sketchname, it delivers the best performance across all workloads because
+\sketchname eliminates many on-disk timestamp lookups, reducing storage-induced
+stalls. The benefit is most pronounced in write-intensive scenarios:
+SplinterDB's fast write path allows operations to proceed quickly even with slow
+storage, but serializing transactions requires reading timestamps from disk,
+turning writes into reads. \sketchname effectively mitigates this overhead.
+
 
 \subsubsection{YCSB Mixed-Transaction Workloads}
 
@@ -277,13 +280,13 @@ rate even though storage is slow.
             \coordinate (cc2) at ($(top)!.75!(bot)$);
 
             \node[above] at (c |- current bounding box.north) {\ref{grouplegend}};
-            \node[below] at (cc1 |- current bounding box.south) {(a) High-contended (zipf=0.99)};
-            \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contended (zipf=0.6)};
+            \node[below] at (cc1 |- current bounding box.south) {(a) High-contention (zipf=0.99)};
+            \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contention (zipf=0.6)};
         \end{tikzpicture}
     } \caption[YCSB mixed-transaction workloads results on slow SSD]{YCSB
     mixed-transaction workloads results with 120 processing threads on slow SSD.
     80\% of transactions perform 2 reads and 2 writes, and 20\% of transactions
-    perform 28 reads. Note that, in the medium-contended workload, several
+    perform 28 reads. Note that, in the medium-contention workload, several
     variants have abort rates very close to 0.}
     \label{fig:ycsb:mixed:slow_ssd}
 \end{figure}
@@ -292,8 +295,8 @@ rate even though storage is slow.
 In \Cref{fig:ycsb:mixed:slow_ssd}, both \sketchname variants show strong
 performance in mixed-transaction settings on slow SSD. In high-contention
 scenarios, \sketchname offers up to 60\% higher goodput than the Disk variants.
-It also outperforms 2PL and KR-OCC, with goodput increases of up to 24\% and
-59\%, respectively.
+It also outperforms 2PL and KR-OCC, with goodput increases of up to 1.24$\times$ and
+1.59$\times$, respectively.
 
 Under medium contention, the goodputs of these systems are mainly limited by
 slow disk access. Unlike our evaluation with NVMe SSDs described in
@@ -489,8 +492,8 @@ all tested protocols.
 
             \node[above] at (c |- current bounding box.north) {\ref{grouplegend}};
         \end{tikzpicture}
-    }
-    \caption[TPC-C results on slow SSD]{TPC-C results with 120 processing threads on slow SSD (More warehouses means less contention).}
+    } \caption[TPC-C results on slow SSD]{TPC-C results with 120 processing
+    threads on slow SSD (More warehouses means less contention).}
     \label{fig:tpcc:slow_ssd}
 \end{figure*}
 
@@ -641,14 +644,14 @@ keeping some CPU cores available.
             \coordinate (cc2) at ($(top)!.75!(bot)$);
 
             \node[above] at (c |- current bounding box.north) {\ref{grouplegend}};
-            \node[below] at (cc1 |- current bounding box.south) {(a) High-contended YCSB (zipf=0.99)};
-            \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contended YCSB (zipf=0.6)};
+            \node[below] at (cc1 |- current bounding box.south) {(a) High-contention YCSB (zipf=0.99)};
+            \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contention YCSB (zipf=0.6)};
         \end{tikzpicture}
     } \caption[YCSB small-transaction workloads results on HDD]{YCSB
     small-transaction workloads results with 60 processing threads on HDD. In
     write-intensive workloads, each transaction performs 8 reads and 8 writes.
     In read-intensive workloads, each transaction performs 15 reads and 1 write.
-    Note that, in the medium-contended workload, several variants have abort
+    Note that, in the medium-contention workload, several variants have abort
     rates very close to 0.}
     \label{fig:ycsb:slow_hdd}
 \end{figure}
@@ -659,13 +662,13 @@ workloads with 60 processing threads on an HDD. In the high-contention,
 read-intensive workload, KR-OCC reaches about 14 KTPS. Because disk I/O is a
 major bottleneck with slow storage, KR-OCC performs better than other
 timestamp-based concurrency control (CC) methods except for TicToc.
-TicToc-\psketchname has the highest goodput in this workload, running 1.04 times
+TicToc-\psketchname has the highest goodput in this workload, running 1.04$\times$
 faster than KR-OCC. In addition, \psketchname increases TicToc's goodput by 36\%
 compared to TicToc-Disk.
 
 Similar to the results in \Cref{fig:ycsb:slow_ssd}, when the workload is
 high-contention and write-intensive, \sketchname keeps TicToc's high
-performance. TicToc-\psketchname achieves 1.8 times the speed of KR-OCC and
+performance. TicToc-\psketchname achieves 1.8$\times$ the speed of KR-OCC and
 increases goodput by 519\% compared to TicToc-Disk.
 
 For workloads with medium contention, all methods are mainly limited by I/O. The
@@ -745,13 +748,13 @@ and the write-intensive workloads, respectively.
             \coordinate (cc2) at ($(top)!.75!(bot)$);
 
             \node[above] at (c |- current bounding box.north) {\ref{grouplegend}};
-            \node[below] at (cc1 |- current bounding box.south) {(a) High-contended (zipf=0.99)};
-            \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contended (zipf=0.6)};
+            \node[below] at (cc1 |- current bounding box.south) {(a) High-contention (zipf=0.99)};
+            \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contention (zipf=0.6)};
         \end{tikzpicture}
     } \caption[YCSB mixed-transaction workloads results on HDD]{YCSB
     mixed-transaction workloads results with 60 processing threads on HDD. 80\%
     of transactions perform 2 reads and 2 writes, and 20\% of transactions
-    perform 28 reads. Note that, in the medium-contended workload, several
+    perform 28 reads. Note that, in the medium-contention workload, several
     variants have abort rates very close to 0.}
     \label{fig:ycsb:mixed:hdd}
 \end{figure}
@@ -964,7 +967,7 @@ STO-\psketchname and TicToc-\psketchname achieve up to 1.25$\times$ and
 \section{Fast Storage}\label{sec:fast-storage}
 
 Having demonstrated \sketchname's effectiveness on slow storage, we now evaluate
-its performance on fast storage media, such as CXL-based flash with DRAM-like 
+its performance on fast storage media, such as CXL-based SSDs with DRAM-like 
 latency. This evaluation reveals a fundamental shift in performance 
 characteristics: as storage becomes faster, the system transitions from being 
 I/O-bound to CPU-bound, making the overhead of the \sketchname data structure 
@@ -974,7 +977,7 @@ evolve toward lower latencies.
 
 This section presents \sketchname's performance on fast storage, revealing the following:
 \begin{itemize}
-    \item On fast storage (emulated DRAM-like latency storage), \sketchname
+    \item On fast storage (simulated DRAM-like latency storage), \sketchname
     demonstrates dramatic performance advantages over traditional concurrency
     control. TicToc-\psketchname achieves up to 3.55$\times$ and 21.5$\times$
     higher goodput than 2PL and KR-OCC in high-contention workloads, with up to
@@ -1001,46 +1004,46 @@ This section presents \sketchname's performance on fast storage, revealing the f
     overheads are more visible.
 \end{itemize}
 
-\subsection{CXL Emulation Methodology}
+\subsection{CXL Simulation Methodology}
 
 To evaluate \sketchname's effectiveness on next-generation storage technologies,
-we emulate CXL-based flash storage using block
-ramdisk~\cite{linuxkernel_ramdisk}. This subsection details our emulation
+we simulate CXL-based SSDs storage using block
+ramdisk~\cite{linuxkernel_ramdisk}. This subsection details our simulation
 methodology, the assumptions we make, and how our results relate to real CXL
 hardware.
 
-\subsubsection{Emulation Setup}
+\subsubsection{Simulation Setup}
 
-We use block ramdisk on the same CloudLab machine described in \Cref{sec:eval-setup}
-to emulate CXL-based flash with DRAM-like latency. Block ramdisk provides storage
-access through the standard block device interface while storing data in RAM,
-effectively creating a software-based storage layer that mimics the low latency
-characteristics of memory-like storage technologies. This approach allows us to
-evaluate \sketchname's behavior when storage access times are dramatically reduced
-without requiring specialized CXL hardware that may not be readily available in
-experimental environments.
+We use block ramdisk on the same CloudLab machine described in
+\Cref{sec:eval-setup} to simulate CXL-based SSDs with DRAM-like latency. Block
+ramdisk provides storage access through the standard block device interface
+while storing data in RAM, effectively creating a software-based storage layer
+that mimics the low latency characteristics of memory-like storage technologies.
+This approach allows us to evaluate \sketchname's behavior when storage access
+times are dramatically reduced without requiring specialized CXL hardware that
+may not be readily available in experimental environments.
 
 
 \subsubsection{Assumptions and Limitations}
 
-Our emulation makes several important assumptions that should be considered when
-interpreting results:
+Our simulation makes several important assumptions that should be considered
+when interpreting results:
 
 \begin{itemize}
     \item \textbf{Interface semantics}: Block ramdisk uses the standard block
-    device interface, whereas real CXL storage may support byte-addressable access
-    through the CXL.mem protocol. This difference may affect the relative
+    device interface, whereas real CXL storage may support byte-addressable
+    access through the CXL.mem protocol. This difference may affect the relative
     performance of different access patterns, though the fundamental latency
-    characteristics we seek to emulate are preserved.
+    characteristics we seek to simulate are preserved.
     
     \item \textbf{Bandwidth characteristics}: Real CXL storage provides high
-    bandwidth (up to 16 GB/s on PCIe 5.0 x4), whereas our emulation is limited by
-    system RAM bandwidth. However, since our evaluation focuses on latency-bound
-    operations (random I/O for timestamp access), bandwidth differences have minimal
-    impact on our findings.
+    bandwidth (up to 16 GB/s on PCIe 5.0 x4), whereas our simulation is limited
+    by system RAM bandwidth. However, since our evaluation focuses on
+    latency-bound operations (random I/O for timestamp access), bandwidth
+    differences have minimal impact on our findings.
     
     \item \textbf{Remote memory effects}: Real CXL storage may exhibit NUMA-like
-    behavior with remote memory access characteristics. Our emulation does not
+    behavior with remote memory access characteristics. Our simulation does not
     capture these effects, though \sketchname's effectiveness in avoiding remote
     access overhead remains valid.
     
@@ -1179,14 +1182,14 @@ becomes more pronounced, revealing areas for future optimization.
             \coordinate (cc2) at ($(top)!.75!(bot)$);
 
             \node[above] at (c |- current bounding box.north) {\ref{grouplegend}};
-            \node[below] at (cc1 |- current bounding box.south) {(a) High-contended YCSB (zipf=0.99)};
-            \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contended YCSB (zipf=0.6)};
+            \node[below] at (cc1 |- current bounding box.south) {(a) High-contention YCSB (zipf=0.99)};
+            \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contention YCSB (zipf=0.6)};
         \end{tikzpicture}
     } \caption[YCSB small-transaction workloads results on fast storage]{YCSB
     small-transaction workloads results with 120 processing threads on fast
     storage. In write-intensive workloads, each transaction performs 8 reads and
     8 writes. In read-intensive workloads, each transaction performs 15 reads
-    and 1 write. Note that, in the medium-contended workload, several variants
+    and 1 write. Note that, in the medium-contention workload, several variants
     have abort rates very close to 0.}
     \label{fig:ycsb:fast_storage}
 \end{figure}
@@ -1204,7 +1207,7 @@ affected, since it needs more synchronization to check for conflicts when
 committing transactions. 
 
 The second main finding is that splitting timestamp storage using \sketchname is
-effective. However, when Disk variants store timestamps on SplinterDB with fast
+effective. Although Disk variants store timestamps on SplinterDB with fast
 storage, they are still slower than pure in-memory dedicated timestamp storage.
 This is because accessing timestamps through SplinterDB is more complex than
 accessing them from memory directly.
@@ -1333,13 +1336,13 @@ on fast storage.
             \coordinate (cc2) at ($(top)!.75!(bot)$);
 
             \node[above] at (c |- current bounding box.north) {\ref{grouplegend}};
-            \node[below] at (cc1 |- current bounding box.south) {(a) High-contended (zipf=0.99)};
-            \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contended (zipf=0.6)};
+            \node[below] at (cc1 |- current bounding box.south) {(a) High-contention (zipf=0.99)};
+            \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contention (zipf=0.6)};
         \end{tikzpicture}
     } \caption[YCSB mixed-transaction workloads results on fast storage]{YCSB
     mixed-transaction workloads results with 120 processing threads on fast
     storage. 80\% of transactions perform 2 reads and 2 writes, and 20\% of
-    transactions perform 28 reads. Note that, in the medium-contended workload,
+    transactions perform 28 reads. Note that, in the medium-contention workload,
     several variants have abort rates very close to 0.}
     \label{fig:ycsb:mixed_fast}
 \end{figure}
@@ -1361,7 +1364,7 @@ However, when compared against the Memory configuration, both
 TicToc-\psketchname and STO-\psketchname have 28\% and 22\% lower goodput,
 respectively.
 
-For the medium-contended scenario, there are two main points. First, similar to
+For the medium-contention scenario, there are two main points. First, similar to
 the small-transaction experiments, 2PL still outperforms the \sketchname
 variants, although the timestamp-based CC mechanisms running with Memory
 configuration are still able to outperform 2PL. This shows that timestamping
@@ -1374,10 +1377,10 @@ waits until commit time to make this decision. This leads to more
 over-approximation of timestamps in \sketchname for STO, especially since
 mixed-transaction workloads have more short transactions. With bigger sketch
 size than the evaluation setup, the abort rate of STO-\psketchname decreases.
-For example, STO-\psketchname with 256KiB sketch size achieves approximately 520
-KTPS, improving goodput by 50.4\% compared to STO-Disk. Thus, the more memory
-for sketch is necessary for STO if transactions are short and their operations
-are executed quickly.
+For example, increasing the sketch size for STO-\psketchname from the current
+32KiB to 256KiB raises goodput to approximately 520 KTPS, improving goodput by
+50.4\% compared to STO-Disk. Thus, the more memory for sketch is necessary for
+STO if transactions are short and their operations are executed quickly.
 
 
 \subsubsection{YCSB Long-Transaction Workload}
@@ -1578,20 +1581,18 @@ than TicToc for long transactions. This matches our earlier findings from the
 YCSB long-transaction workload in \Cref{fig:ycsb:long_fast}.
 
 Comparing \psketchname and \fsketchname, we see that \psketchname always has
-better goodput at every contention level. This is because \psketchname has less
-overhead from sketch evictions. However, the gap between the two gets smaller
-when the workload is less contentious (that is, when there are more warehouses).
-This indicates that \psketchname is a good option for deployment on fast
-storage.
+better goodput at every contention level. This is because \psketchname has no
+overhead from sketch evictions. This indicates that \psketchname is a good
+option for deployment on fast storage.
 
 
 \section{Summary}
 
 This chapter presents a comprehensive evaluation of \sketchname across diverse
 storage media, from traditional slow storage (SATA SSD and HDD) to modern fast
-storage emulating CXL-based flash with DRAM-like latency. Our experimental study
-reveals several important findings and lessons that guide the adoption and future
-development of \sketchname.
+storage simulating CXL-based SSDs with DRAM-like latency. Our experimental study
+reveals several important findings and lessons that guide the adoption and
+future development of \sketchname.
 
 \subsection{Key Findings}
 
@@ -1648,13 +1649,21 @@ access overhead. The mixed-transaction workloads demonstrate that \sketchname
 maintains its effectiveness even when workloads contain both short and long
 transactions.
 
-Finally, our evaluation reveals that storage media characteristics fundamentally
-change the performance trade-offs in concurrency control. As storage becomes
-faster, timestamp-based methods with \sketchname emerge as the clear winners
-over traditional locking-based approaches. This finding suggests that as storage
-technology continues to evolve toward lower latency and higher bandwidth,
-\sketchname will become increasingly important for enabling high-performance
-transaction processing in disk-based key-value stores.
+Fourth, sketch capacity and adaptivity matter as storage becomes faster.
+Performance is sensitive to the size of the sketch, especially for STO on fast
+storage where immediate validation increases pressure on approximate timestamps.
+Larger sketches reduce over-approximation and aborts (e.g., increasing the
+sketch from 32KiB to 256KiB substantially improved STO-\psketchname in mixed
+workloads). A simple autotuning policy that adjusts sketch size using online
+abort/eviction telemetry within a small memory budget can deliver robust
+performance across workloads.
+
+Finally, CPU and NUMA considerations dominate on fast storage. Once the system
+is CPU-bound, allocator and hash table costs in \sketchname become critical.
+Using slab/arena allocation for entries and keys, pre-sizing and per-core/socket
+sharding of the hash table, reducing key copies, and NUMA-aware placement can
+close part of the gap to the Memory configuration.
+
 
 \subsection{Deployment Guidelines}
 
@@ -1669,18 +1678,19 @@ low contention, where \fsketchname's ability to evict keys might provide margina
 memory savings.
 
 \textbf{Storage-specific recommendations:} On slow storage (SATA SSD and HDD),
-\sketchname provides dramatic improvements and should be adopted whenever 
-timestamp-based CC methods are used. The benefits are most pronounced for 
-high-contention workloads. On fast storage (CXL-based flash or similar), 
-\sketchname remains beneficial, particularly for high-contention scenarios where
-timestamp-based methods significantly outperform 2PL and KR-OCC. However, the
-overhead becomes more visible, suggesting future optimization opportunities.
+\sketchname provides dramatic improvements and should be adopted whenever
+timestamp-based CC methods are used. The benefits are most pronounced for
+high-contention workloads. On fast storage (CXL-based SSDs or similar future
+innovations), \sketchname remains beneficial, particularly for high-contention
+scenarios where timestamp-based methods significantly outperform 2PL and KR-OCC.
+However, the overhead becomes more visible, suggesting future optimization
+opportunities.
 
-\textbf{Workload considerations:} \sketchname is most beneficial for workloads with
-short transactions and high contention, especially write-intensive operations. For
-long transactions, \sketchname still provides improvements, but the impact is
-smaller since transaction execution time dominates. Mixed workloads benefit
-substantially from \sketchname across all storage types.
+\textbf{Workload considerations:} \sketchname is highly beneficial for the vast
+majority of practical workloads. Small transactions with high contention see the
+biggest wins; Long transactions also benefit, though proportionally less because
+transaction execution time dominates. Mixed workloads benefit substantially from
+\sketchname across all storage types.
 
 \textbf{Memory requirements:} \sketchname requires minimal memory (32KiB in our
 experiments with an 80GB database), making it practical for deployment even in

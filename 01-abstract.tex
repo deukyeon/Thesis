@@ -60,16 +60,16 @@ locking, up to 5.9$\times$ higher goodput than disk-based timestamp storage.
 Our second contribution is a comprehensive analytical and experimental study
 evaluating \sketchname across the entire storage performance spectrum, from
 traditional hard disk drives with millisecond latencies to emerging CXL-based
-storage approaching DRAM-like speeds. This evaluation reveals that
-\sketchname's benefits scale with the fundamental gap between local memory and
-remote storage access, ensuring its continued relevance as storage technology
-evolves. On slow storage (HDDs and SATA SSDs), \sketchname eliminates the
-prohibitive overhead of timestamp disk accesses, achieving improvements of up
-to 569\% over disk-based timestamp storage. On fast storage (emulated CXL-based
-flash), where systems transition from I/O-bound to CPU-bound, \sketchname
-continues to provide substantial benefits by keeping timestamp metadata in
-fast local memory, enabling timestamp-based protocols to significantly
-outperform traditional approaches.
+storage approaching DRAM-like speeds. This evaluation reveals that \sketchname's
+benefits scale with the fundamental gap between local memory and remote storage
+access, ensuring its continued relevance as storage technology evolves. On slow
+storage (HDDs and SATA SSDs), \sketchname eliminates the prohibitive overhead of
+timestamp disk accesses, achieving improvements of up to 569\% over disk-based
+timestamp storage. On fast storage (simulated CXL-based SSDs), where systems
+transition from I/O-bound to CPU-bound, \sketchname continues to provide
+substantial benefits by keeping timestamp metadata in fast local memory,
+enabling timestamp-based protocols to significantly outperform traditional
+approaches.
 
 Together, these contributions establish approximate timestamp storage as a
 universally applicable and future-ready approach for high-performance

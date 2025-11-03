@@ -661,7 +661,7 @@ experiments:
           dramatic margins.  For example, \sketchname improves TicToc goodput by
           up to 5.9$\times$, STO by up to 1.8$\times$, and MVTO by over
           160$\times$.
-    \item Similarly, \psketchname-based protocols can offer up to 2x greater
+    \item Similarly, \psketchname-based protocols can offer up to 2$\times$ greater
           goodput than \fsketchname-based ones. Furthermore, TicToc and STO with
           \psketchname are never substantially slower than the \fsketchname
           variants.
@@ -870,11 +870,11 @@ timestamps for the much larger set of inactive keys:
             \coordinate (cc2) at ($(top)!.75!(bot)$);
 
             \node[above] at (c |- current bounding box.north) {\ref{grouplegend}};
-            \node[below] at (cc1 |- current bounding box.south) {(a) High-contended YCSB (zipf=0.99)};
-            \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contended YCSB (zipf=0.6)};
+            \node[below] at (cc1 |- current bounding box.south) {(a) High-contention YCSB (zipf=0.99)};
+            \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contention YCSB (zipf=0.6)};
         \end{tikzpicture}
     }
-    \caption[YCSB small-transaction workloads results]{YCSB small-transaction workloads results with 120 processing threads. In write-intensive workloads, each transaction performs 8 reads and 8 writes. In read-intensive workloads, each transaction performs 15 reads and 1 write. Note that, in the medium-contended workload, several schemes have abort rates very close to 0.}
+    \caption[YCSB small-transaction workloads results]{YCSB small-transaction workloads results with 120 processing threads. In write-intensive workloads, each transaction performs 8 reads and 8 writes. In read-intensive workloads, each transaction performs 15 reads and 1 write. Note that, in the medium-contention workload, several schemes have abort rates very close to 0.}
     \label{fig:ycsb}
 \end{figure}
 
@@ -959,7 +959,7 @@ We can draw several other conclusions from these results.
           cache. Consequently, Disk-based variants incur reads for every write,
           incurring high overhead in write-intensive workloads.
     \item The gap between Disk-based and other variants is also larger in the
-          medium-contended workloads because these workloads have less locality,
+          medium-contention workloads because these workloads have less locality,
           increasing cache miss rates.
     \item MVTO-Disk is also particularly slow because it stores old versions on
           disk and uses a range query to find the most recent version whenever
@@ -1040,11 +1040,11 @@ We can draw several other conclusions from these results.
             \coordinate (cc2) at ($(top)!.75!(bot)$);
 
             \node[above] at (c |- current bounding box.north) {\ref{grouplegend}};
-            \node[below] at (cc1 |- current bounding box.south) {(a) High-contended (zipf=0.99)};
-            \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contended (zipf=0.6)};
+            \node[below] at (cc1 |- current bounding box.south) {(a) High-contention (zipf=0.99)};
+            \node[above] at (cc2 |- current bounding box.south) {(b) Medium-contention (zipf=0.6)};
         \end{tikzpicture}
     }
-    \caption[YCSB mixed-transaction workloads results]{YCSB mixed-transaction workloads results with 120 processing threads. 80\% of transactions perform 2 reads and 2 writes, and 20\% of transactions perform 28 reads. Note that, in the medium-contended workload, several schemes have abort rates very close to 0.}
+    \caption[YCSB mixed-transaction workloads results]{YCSB mixed-transaction workloads results with 120 processing threads. 80\% of transactions perform 2 reads and 2 writes, and 20\% of transactions perform 28 reads. Note that, in the medium-contention workload, several schemes have abort rates very close to 0.}
     \label{fig:ycsb:mixed}
 \end{figure}
 
@@ -1156,13 +1156,13 @@ timestamps can handle large transactions, not just small ones.
                 ]
 
                 % graph [1,1] high
-                \nextgroupplot[title={\small{High-Contended (zipf=0.99)}}, title style={xshift=-10pt}, xlabel={SplinterDB Cache Size (GB)}, ylabel={Goodput (KTPS)}]
+                \nextgroupplot[title={\small{High-contention (zipf=0.99)}}, title style={xshift=-10pt}, xlabel={SplinterDB Cache Size (GB)}, ylabel={Goodput (KTPS)}]
                 \addplot[FPSketch-LineStyle] coordinates {(6, 115.33) (12, 175.96) (18, 193.158333) (24, 195.850333) (30, 197.279667) (36, 199.209)};
                 \addplot[Disk-LineStyle] coordinates {(6, 49.263467) (12, 69.5672) (18, 75.883167) (24, 81.314367) (30, 81.7691) (36, 81.4466)};
                 \coordinate (top) at (rel axis cs:0,1);% coordinate at top of the first plot
 
                 % graph [1,1] medium
-                \nextgroupplot[title={\small{Medium-Contended (zipf=0.6)}}, xlabel={SplinterDB Cache Size (GB)}]
+                \nextgroupplot[title={\small{Medium-contention (zipf=0.6)}}, xlabel={SplinterDB Cache Size (GB)}]
                 \addplot[FPSketch-LineStyle] coordinates {(6, 45.608067) (12, 74.820133) (18, 96.687467) (24, 128.449) (30, 169.679) (36, 215.528)};
                 \addplot[Disk-LineStyle] coordinates {(6, 29.168467) (12, 47.3736) (18, 59.791367) (24, 71.666667) (30, 86.460567) (36, 103.74)};
                 \coordinate (bot) at (rel axis cs:1,0);% coordinate at bottom of the last plot
@@ -1186,8 +1186,8 @@ is to answer the question: can we fix the performance problems in Disk-based
 schemes by simply increasing cache sizes?
 
 \Cref{fig:ycsb:spl_cache} suggest that the answer is ``No.''  In the
-high-contended workload, TicToc-Disk with a 37 GiB cache is still slower than
-TicToc-\psketchname with a mere 6GiB cache.  And in the medium-contended
+high-contention workload, TicToc-Disk with a 37 GiB cache is still slower than
+TicToc-\psketchname with a mere 6GiB cache.  And in the medium-contention
 workload, TicToc-Disk needs roughly twice as much cache to match the goodput of
 TicToc-\psketchname, which needs only 32KiBs to store timestamps.
 
@@ -1239,14 +1239,14 @@ average memory usage of 160KiB.
                 ]
 
                 % graph [1,1] high
-                \nextgroupplot[title={{\small High-Contended (zipf=0.99)}}, title style={xshift=-10pt}, xlabel={Timestamp Cache Size (MB)}, ylabel={Goodput (KTPS)}]
+                \nextgroupplot[title={{\small High-contention (zipf=0.99)}}, title style={xshift=-10pt}, xlabel={Timestamp Cache Size (MiB)}, ylabel={Goodput (KTPS)}]
                 \addplot[Disk-Cache-LineStyle] coordinates {(0.032, 43.443867) (0.32, 49.2635) (3.2, 53.8861) (32, 57.0798)
                         (160, 83.2997) (200, 97.8576) (240, 132.731) (320, 134.029)};
                 \draw [dashed, color=violet, line width=0.6pt] (axis cs:0.032,115.33) -- (axis cs:320,115.33);
                 \coordinate (top) at (rel axis cs:0,1);% coordinate at top of the first plot
 
                 % graph [1,1] medium
-                \nextgroupplot[title={{\small Medium-Contended (zipf=0.6)}}, xlabel={Timestamp Cache Size (MB)}, ymax=50]
+                \nextgroupplot[title={{\small Medium-contention (zipf=0.6)}}, xlabel={Timestamp Cache Size (MiB)}, ymax=50]
                 \addplot[Disk-Cache-LineStyle] coordinates {(0.032, 23.9132) (0.32, 25.9769) (3.2, 26.9321) (32, 27.1612)
                         (160, 29.1538) (200, 29.3707) (240, 29.7308) (320, 31.1101)};
                 \draw [dashed, color=violet, line width=0.6pt] (axis cs:0.032,45.608067) -- (axis cs:320,45.608067);
@@ -1266,10 +1266,10 @@ average memory usage of 160KiB.
 
 \Cref{fig:ycsb:disk_cache} compares the performance of Disk-Cache with
 \psketchname. We used the same configuration for \psketchname--32KiB cache. The
-dashed line is the goodput of \psketchname. In high-contended workloads,
-Disk-Cache requires about 220MB of cache to achieve the same goodput as
+dashed line is the goodput of \psketchname. In high-contention workloads,
+Disk-Cache requires about 220MiB of cache to achieve the same goodput as
 \psketchname, which uses only 32KiB of memory. Disk-Cache never achieves the
-same goodput as \psketchname in our medium-contended workloads because the
+same goodput as \psketchname in our medium-contention workloads because the
 Disk-Cache variant still requires I/O to access timestamps, while \psketchname
 does not.
 
@@ -1622,7 +1622,7 @@ substantially worse than the \fsketchname variants.
             \node[above] at (c |- current bounding box.north) {\ref{grouplegend}};
         \end{tikzpicture}
     }
-    \caption[Factor-analysis of the sketch size]{The goodput of TicToc, STO, and MVTO for high-contended YCSB
+    \caption[Factor-analysis of the sketch size]{The goodput of TicToc, STO, and MVTO for high-contention YCSB
         workloads with varying sketch sizes. We configure workloads by operations
         proportion (Read-intensive vs. Write-intensive), the database size (containing
         673M vs. 67.3M keys), and the concurrency level (120 vs 16 threads). The dashed
@@ -1636,7 +1636,7 @@ substantially worse than the \fsketchname variants.
 
 
 We conduct a factor-analysis of the sketch size of \sketchname for TicToc, STO,
-and MVTO. \Cref{fig:sketch_size} presents the goodput for the high-contended
+and MVTO. \Cref{fig:sketch_size} presents the goodput for the high-contention
 YCSB workloads as the sketch size increases. We vary workload type
 (read-intensive vs. write-intensive), the number of worker threads varying the
 amount of data updating the sketch, and the database size determined by the
@@ -1665,9 +1665,9 @@ presented the design of an approximate timestamp storage system,
 \psketchname. We integrated \sketchname with three timestamp-based CC
 protocols--STO, MVTO, and TicToc. Our evaluation shows superior
 performance across various workloads using our \sketchname approach.
-Notably, TicToc with \psketchname achieves up to 11$\times$ better
+Notably, TicToc with \psketchname achieves up to 14$\times$ better
 performance than traditional 2PL and OCC approaches, and up to
-27$\times$ improvement over disk-based timestamp storage. \sketchname
+5.9$\times$ improvement over disk-based timestamp storage. \sketchname
 unlocks the ability to adapt existing CC techniques and paves the way
 for innovative CC mechanisms in future disk-based key-value stores.
 
