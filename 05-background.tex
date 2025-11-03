@@ -19,9 +19,10 @@ transactional systems must guarantee.
 \label{sec:background:acid}
 
 Transactional database systems are built upon four fundamental guarantees,
-collectively known as the ACID properties: Atomicity, Consistency, Isolation,
-and Durability. These properties ensure that database operations behave reliably
-even when multiple users access the system simultaneously.
+collectively known as the ACID properties~\cite{haerder1983principles}:
+Atomicity, Consistency, Isolation, and Durability. These properties ensure that
+database operations behave reliably even when multiple users access the system
+simultaneously.
 
 \textbf{Atomicity} ensures that each transaction is treated as a single,
 indivisible unit. Either all operations within a transaction complete
@@ -64,8 +65,8 @@ Lock-based concurrency control operates on the principle of preventing conflicts
 before they occur. These protocols assume that conflicts are likely and take
 proactive measures to avoid them by controlling access to data items.
 
-\textbf{Two-Phase Locking (2PL)} is the most widely used lock-based protocol.
-It operates in two distinct phases:
+\textbf{Two-Phase Locking (2PL)}~\cite{eswaran1976notions} is the most widely
+used lock-based protocol. It operates in two distinct phases:
 
 \begin{itemize}
 \item \textbf{Growing Phase}: During this phase, a transaction can acquire locks
@@ -103,16 +104,18 @@ throughput.
 \end{itemize}
 
 To address deadlock issues, practical implementations often use policies like
-\emph{no-wait}, where transactions immediately abort if they cannot acquire a
-needed lock, rather than waiting and potentially creating deadlocks.
+\emph{no-wait}~\cite{DBLP:conf/sigmod/RenFA16,DBLP:conf/usenix/TangE18}, where
+transactions immediately abort if they cannot acquire a needed lock, rather than
+waiting and potentially creating deadlocks.
 
 
 \subsubsection{Optimistic Concurrency Control}
 
-Optimistic concurrency control (OCC) takes a fundamentally different approach to
-handling concurrent transactions. Rather than using locks to prevent conflicts
-from occurring, OCC assumes that conflicts are rare and permits transactions to
-proceed in parallel without synchronization during most of their execution.
+Optimistic concurrency control (OCC)~\cite{kung1981optimistic} takes a
+fundamentally different approach to handling concurrent transactions. Rather
+than using locks to prevent conflicts from occurring, OCC assumes that conflicts
+are rare and permits transactions to proceed in parallel without synchronization
+during most of their execution.
 
 A typical OCC protocol consists of three phases:
 \begin{itemize}
@@ -161,36 +164,36 @@ Timestamp-based protocols use temporal ordering to determine the serialization
 order of transactions, assigning each transaction a unique timestamp that
 determines when it should appear to execute relative to other transactions.
 
-\textbf{Strict Timestamp Ordering (STO)} is a traditional good timestamp-based
-protocol. Each transaction receives a timestamp when it starts, and this
-timestamp determines its position in the serialization order. When accessing a
-data item, the transaction compares its timestamp against the item's read and
-write timestamps. If the access would violate the timestamp ordering rules, the
-transaction immediately aborts.
+\textbf{Strict Timestamp Ordering (STO)}~\cite{bernstein1987concurrency} is a
+traditional good timestamp-based protocol. Each transaction receives a timestamp
+when it starts, and this timestamp determines its position in the serialization
+order. When accessing a data item, the transaction compares its timestamp
+against the item's read and write timestamps. If the access would violate the
+timestamp ordering rules, the transaction immediately aborts.
 
 STO uses both read and write timestamps for each data item, allowing higher
 concurrency than single-timestamp approaches. A transaction can read an item if
 its timestamp is greater than the item's write timestamp, and can write an item
 if its timestamp is greater than the item's read timestamp.
 
-\textbf{Multi-Version Timestamp Ordering (MVTO)} extends timestamp ordering by
-maintaining multiple versions of each data item. This allows read-only
-transactions to access older, consistent snapshots without conflicting with
-concurrent write transactions. MVTO is particularly effective for read-heavy
-workloads where many transactions need to read data while fewer transactions
-perform updates.
+\textbf{Multi-Version Timestamp Ordering (MVTO)}~\cite{reed1983mvto} extends
+timestamp ordering by maintaining multiple versions of each data item. This
+allows read-only transactions to access older, consistent snapshots without
+conflicting with concurrent write transactions. MVTO is particularly effective
+for read-heavy workloads where many transactions need to read data while fewer
+transactions perform updates.
 
 However, MVTO introduces significant overhead in terms of storage space (for
 maintaining multiple versions) and garbage collection (for removing old versions
 that are no longer needed).
 
-\textbf{TicToc (Optimistic Timestamp Ordering)} represents an advanced approach
-that combines the benefits of timestamp ordering with optimistic execution.
-Instead of assigning timestamps at transaction start, TicToc dynamically chooses
-a commit timestamp during the validation phase. By selecting a timestamp that is
-guaranteed to be valid with respect to all accessed data, TicToc minimizes the
-time window for potential conflicts, significantly reducing abort rates compared
-to traditional optimistic protocols.
+\textbf{TicToc (Optimistic Timestamp Ordering)}~\cite{yu2016tictoc} represents
+an advanced approach that combines the benefits of timestamp ordering with
+optimistic execution. Instead of assigning timestamps at transaction start,
+TicToc dynamically chooses a commit timestamp during the validation phase. By
+selecting a timestamp that is guaranteed to be valid with respect to all
+accessed data, TicToc minimizes the time window for potential conflicts,
+significantly reducing abort rates compared to traditional optimistic protocols.
 
 \section{The Evolution of On-Disk Storage Systems}
 \label{sec:background:storage}
@@ -233,20 +236,21 @@ rotate under the head
 \end{itemize}
 These mechanical limitations result in access times of several milliseconds and
 very low random I/O performance, typically achieving only 100-200 input/output
-operations per second (IOPS). However, HDDs are still used in many systems
-because of their low cost and high capacity.
+operations per second (IOPS)~\cite{samsung2013ssd}. However, HDDs are still used
+in many systems because of their low cost and high capacity.
 
 \textbf{SATA Solid-State Drives (SSDs)} eliminated mechanical delays but were
 constrained by the legacy SATA III interface, which was designed for
 single-queue spinning disks. The SATA interface caps bandwidth at approximately
 600 MB/s, and the AHCI protocol limits parallelism. Despite these constraints,
 SATA SSDs achieve latencies in the hundreds of microseconds and can support up
-to approximately 100,000 IOPS—a significant improvement over HDDs.
+to approximately 100,000 IOPS—a significant improvement over
+HDDs~\cite{samsung2013ssd}.
 
 \textbf{NVMe Solid-State Drives (SSDs)} represent the current state-of-the-art,
 designed from the ground up for flash memory. NVMe utilizes the high-bandwidth,
 low-latency PCIe bus and supports massive parallelism with up to 64,000 command
-queues. Modern Gen4 NVMe drives can achieve:
+queues. Modern Gen4 NVMe drives can achieve~\cite{crucial-t700-review}:
 \begin{itemize}
 \item Throughput exceeding 7 GB/s
 \item Over 1 million IOPS
@@ -255,9 +259,10 @@ queues. Modern Gen4 NVMe drives can achieve:
 
 \textbf{CXL-based SSDs} are a new type of SSD that uses the CXL protocol to
 connect to the CPU. They are much faster than NVMe SSDs, with latencies in the
-single-digit microseconds and throughput in the tens of GB/s. CXL-based SSDs
-are still in the early stages of development, but they are already being used
-in some systems.
+single-digit microseconds and throughput in the tens of
+GB/s~\cite{yang2023overcoming}. CXL-based SSDs are still in the early stages of
+development, but they are already being used in some
+systems~\cite{samsung2022fms}.
 \begin{itemize}
 \item Throughput exceeding 16 GB/s
 \item Over 1 million IOPS
@@ -271,16 +276,17 @@ in some systems.
 The evolution of storage technology has driven the development of new data
 structures designed to exploit the characteristics of solid-state storage.
 
-\textbf{Log-Structured Merge (LSM) trees} and similar write-optimized structures
-have become increasingly popular for on-disk storage systems. These structures
-are designed to maximize write performance by batching and organizing writes
-efficiently.
+\textbf{Log-Structured Merge (LSM) trees}~\cite{OneillChGaOn96} and similar
+write-optimized structures have become increasingly popular for on-disk storage
+systems. These structures are designed to maximize write performance by batching
+and organizing writes efficiently.
 
 A key property of these structures is the \textbf{Query/Insert Asymmetry}: they
 can ingest new data (writes) orders of magnitude faster than they can service
-random queries (reads). For example, SplinterDB, which uses a write-optimized
-structure called a \bets, can perform over 2 million random insertions per
-second but only about 500,000 random queries per second.
+random queries (reads). For example, SplinterDB~\cite{splinterdb}, which uses a
+write-optimized structure called a \bets~\cite{BrodalFa03}, can perform over 2
+million random insertions per second but only about 500,000 random queries per
+second.
 
 This asymmetry is crucial for understanding the performance implications of
 different concurrency control approaches. When timestamp-based protocols store
@@ -354,9 +360,9 @@ structures.
 \label{sec:background:memory-impractical}
 
 The obvious alternative of storing all timestamps in RAM is not viable for
-large-scale database systems. Real-world deployments, such as Facebook's RocksDB
-instances, demonstrate that the memory required for timestamps alone could
-consume a substantial portion of available RAM.
+large-scale database systems. Real-world deployments, such as Facebook's
+RocksDB~\cite{rocksdb} instances, demonstrate that the memory required for
+timestamps alone could consume a substantial portion of available RAM.
 
 For example, with key-value pairs averaging less than 100 bytes, storing two
 8-byte timestamps per pair would require approximately 16\% of the data size in
@@ -369,9 +375,9 @@ purposes.
 \subsection{The Promise and the Pitfall}
 \label{sec:background:benchmarks}
 
-To provide concrete, data-driven motivation, we highlight benchmark results that
-illustrate both the potential and the challenges of timestamp-based concurrency
-control in on-disk systems.
+To provide concrete, data-driven motivation, we highlight our benchmark results
+that illustrate both the potential and the challenges of timestamp-based
+concurrency control in on-disk systems.
 
 \begin{figure}[!t]
     \centering

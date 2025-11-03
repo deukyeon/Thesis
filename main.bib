@@ -88,6 +88,7 @@
   pages     = {183--191},
   year      = {1999}
 }
+
 @book{bernstein1987concurrency,
   title     = {Concurrency control and recovery in database systems},
   author    = {Bernstein, Philip A and Hadzilacos, Vassos and Goodman, Nathan and others},
@@ -113,7 +114,6 @@
   pages      = {128–141},
   numpages   = {14}
 }
-
 @inproceedings{BrodalFa03,
   author    = {Brodal, Gerth Stolting and Fagerberg, Rolf},
   title     = {Lower bounds for external memory dictionaries},
@@ -136,7 +136,6 @@
   howpublished = {\url{http://cassandra.apache.org}}
 }
 
-
 @inproceedings{chardonnay,
   author    = {Tamer Eldeeb and Xincheng Xie and Philip A. Bernstein and Asaf Cidon and Junfeng Yang},
   title     = {Chardonnay: Fast and General Datacenter Transactions for {On-Disk} Databases},
@@ -149,7 +148,6 @@
   publisher = {USENIX Association},
   month     = jul
 }
-
 
 @article{ConwayFaJo23,
   author     = {Conway, Alex and Farach-Colton, Mart\'{\i}n and Johnson, Rob},
@@ -170,6 +168,7 @@
   keywords   = {LSM trees, data structures, filters, key-value stores, maplets, quotient filters}
 }
 
+
 @article{CormodeMu05,
   author     = {Cormode, Graham and Muthukrishnan, S.},
   title      = {An improved data stream summary: the count-min sketch and its applications},
@@ -188,6 +187,7 @@
   pages      = {58–75},
   numpages   = {18}
 }
+
 
 @misc{couchbase,
   title        = {Couchbase},
@@ -257,6 +257,7 @@
   biburl    = {https://dblp.org/rec/conf/fast/CaoDVD20.bib},
   bibsource = {dblp computer science bibliography, https://dblp.org}
 }
+
 @inproceedings{DBLP:conf/sigmod/RenFA16,
   author    = {Kun Ren and
                Jose M. Faleiro and
@@ -295,7 +296,6 @@
   bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 
-
 @article{DBLP:journals/pvldb/HaoC24,
   author    = {Xiangpeng Hao and
                Badrish Chandramouli},
@@ -312,7 +312,6 @@
   biburl    = {https://dblp.org/rec/journals/pvldb/HaoC24.bib},
   bibsource = {dblp computer science bibliography, https://dblp.org}
 }
-
 
 @inproceedings{dlht,
   author    = {Katsarakis, Antonios and Gavrielatos, Vasilis and Ntarmos, Nikos},
@@ -345,6 +344,25 @@
   month     = jul
 }
 
+@article{eswaran1976notions,
+  author    = {Kapali P. Eswaran and
+               Jim Gray and
+               Raymond A. Lorie and
+               Irving L. Traiger},
+  title     = {The Notions of Consistency and Predicate Locks in a Database System},
+  journal   = {Commun. {ACM}},
+  volume    = {19},
+  number    = {11},
+  pages     = {624--633},
+  year      = {1976},
+  url       = {https://doi.org/10.1145/360363.360369},
+  doi       = {10.1145/360363.360369},
+  timestamp = {Wed, 14 Nov 2018 10:22:32 +0100},
+  biburl    = {https://dblp.org/rec/journals/cacm/EswarranGLT76.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+
 @inproceedings{flexswitch,
   author    = {Naveen Kr. Sharma and Antoine Kaufmann and Thomas Anderson and Arvind Krishnamurthy and Jacob Nelson and Simon Peter},
   title     = {Evaluating the Power of Flexible Packet Processing for Network Resource Allocation},
@@ -358,11 +376,23 @@
   month     = mar
 }
 
+
 @inproceedings{googlef1,
   title     = {F1: A Distributed SQL Database That Scales},
   author    = {Jeff Shute and Radek Vingralek and Bart Samwel and Ben Handy and Chad Whipkey and Eric Rollins and Mircea Oancea and Kyle Littleﬁeld and David Menestrina and Stephan Ellner and John Cieslewicz and Ian Rae and Traian Stancescu and Himani Apte},
   year      = {2013},
   booktitle = {VLDB}
+}
+
+@article{haerder1983principles,
+  title     = {Principles of transaction-oriented database recovery},
+  author    = {Haerder, Theo and Reuter, Andreas},
+  journal   = {ACM computing surveys (CSUR)},
+  volume    = {15},
+  number    = {4},
+  pages     = {287--317},
+  year      = {1983},
+  publisher = {ACM New York, NY, USA}
 }
 
 @misc{hotstorage-keynote,
@@ -415,7 +445,6 @@
   publisher = {USENIX Association}
 }
 
-
 @inproceedings{jimgray,
   author    = {Gray, Jim and Baclawski, Ken and Sundaresan, Prakash and Englert, Susanne},
   title     = {Quickly Generating Billion-Record Synthetic Databases},
@@ -443,6 +472,7 @@
   url       = {https://www.usenix.org/conference/fast19/presentation/kaiyrakhmet},
   publisher = {{USENIX} Association}
 }
+
 
 @inproceedings{KourtisIoKo19,
   author    = {Kornilios Kourtis and Nikolas Ioannou and Ioannis Koltsidas},
@@ -481,6 +511,16 @@
   howpublished = {\url{https://github.com/google/leveldb}}
 }
 
+@misc{linuxkernel_ramdisk,
+  author       = {{The Linux Kernel Developers}},
+  title        = {Using the {RAM} disk block device with {Linux}},
+  howpublished = {The Linux Kernel Documentation},
+  year         = {2020},
+  month        = {August},
+  url          = {https://www.kernel.org/doc/html/latest/admin-guide/blockdev/ramdisk.html},
+  note         = {Accessed: 2025-11-02}
+}
+
 @misc{lmdb,
   title  = {{LMDB: The Lightning Memory-Mapped Database Manager}},
   author = {Howard Chu},
@@ -517,7 +557,6 @@
   year      = {2016}
 }
 
-
 @inproceedings{marmol2015nvmkv,
   author        = {Marmol, Leonardo and Sundararaman, Swaminathan and
                    Talagala, Nisha and Rangaswami, Raju},
@@ -530,6 +569,7 @@
                    Store},
   year          = {2015}
 }
+
 
 @misc{microprocessor-trend-data,
   optkey       = {},
@@ -551,7 +591,7 @@
   year         = {2020},
   optnote      = {},
   optannote    = {}
-} 
+}
 
 @misc{myrocks,
   optkey       = {},
@@ -562,7 +602,7 @@
   year         = {2020},
   optnote      = {},
   optannote    = {}
-}
+} 
 
 @inproceedings{neumann2015fast,
   title     = {Fast serializable multi-version concurrency control for main-memory database systems},
@@ -824,6 +864,27 @@
   optkeywords   = {Shadowing, b-trees, concurrency, copy-on-write, snapshots}
 }
 
+@techreport{samsung2013ssd,
+  author      = {{Samsung}},
+  title       = {Samsung Solid State Drive},
+  institution = {Samsung Electronics Co., Ltd.},
+  year        = {2013},
+  type        = {White Paper},
+  month       = {November},
+  url         = {https://download.semiconductor.samsung.com/resources/white-paper/Samsung_SSD_White_Paper.pdf}
+}
+
+@misc{samsung2022fms,
+  author       = {{Samsung Newsroom}},
+  title        = {Samsung Electronics Unveils Far-Reaching, Next-Generation Memory Solutions at Flash Memory Summit 2022},
+  howpublished = {Press Release},
+  month        = {August},
+  day          = {3},
+  year         = {2022},
+  organization = {Samsung},
+  url          = {https://news.samsung.com/global/samsung-electronics-unveils-far-reaching-next-generation-memory-solutions-at-flash-memory-summit-2022}
+}
+
 @misc{schlladb-write-amp,
   title  = {Scylla’s Compaction Strategies Series: Space Amplification in Size-Tiered Compactio},
   url    = {https://www.scylladb.com/2018/01/17/compaction-series-space-amplification/},
@@ -1018,7 +1079,6 @@
   year      = {2015}
 }
 
-
 @inproceedings{VerbitskiGuSa17,
   author    = {Verbitski, Alexandre and Gupta, Anurag and Saha, Debanjan and Brahmadesam, Murali and Gupta, Kamal and Mittal, Raman and Krishnamurthy, Sailesh and Maurice, Sandor and Kharatishvili, Tengiz and Bao, Xiaofeng},
   title     = {Amazon Aurora: Design Considerations for High Throughput Cloud-Native Relational Databases},
@@ -1036,6 +1096,7 @@
   location  = {Chicago, Illinois, USA},
   series    = {SIGMOD '17}
 }
+
 
 @misc{wiredtiger,
   optkey       = {},
@@ -1056,7 +1117,6 @@
   year         = {2015},
   organization = {Springer}
 }
-
 
 @inproceedings{wolf2015sto,
   title        = {An evaluation of strict timestamp ordering concurrency control for main-memory database systems},
@@ -1090,6 +1150,19 @@
   author = {Yann Collet},
   title  = {xxHash - Extremely fast hash algorithm},
   \url   = {https://github.com/Cyan4973/xxHash}
+}
+
+
+@inproceedings{yang2023overcoming,
+  author    = {Yang, Shao-Peng and Kim, Kyung-In and Lee, Eujin and Song, Tae-Gun and Tak, Byung-Chul and Varadarajan, Venkatanathan and Shrivastava, Ajay S. and Lee, Sung-Soon and Choi, Chan-Ik and Oh, Hak-Joo and Cho, Hyunsun and Kim, Seung-Wook and Lee, Sung-Jae and Kim, Jung-Hoon},
+  title     = {Overcoming the Memory Wall with {CXL-Enabled} {SSDs}},
+  booktitle = {2023 {USENIX} Annual Technical Conference ({USENIX} {ATC} 23)},
+  year      = {2023},
+  isbn      = {978-1-939133-35-9},
+  pages     = {599--613},
+  url       = {https://www.usenix.org/conference/atc23/presentation/yang-shao-peng},
+  publisher = {{USENIX} Association},
+  month     = {July}
 }
 
 

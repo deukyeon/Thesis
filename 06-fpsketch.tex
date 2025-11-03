@@ -1,15 +1,15 @@
-
 This chapter introduces the concept of \emph{approximate timestamp storage} for
 enabling efficient timestamp-based concurrency control (CC) mechanisms in modern
 on-disk key-value stores. Exact timestamp storage systems are costly to maintain
 at large scale, especially when data does not fit entirely in main memory. We
 detail the key properties that an approximate timestamp storage system must
 possess to preserve correctness—specifically serializability—for three common CC
-protocols: STO, MVTO, and TicToc. We further describe the design and
-implementation of \sketchname, a novel approximate timestamp storage approach.
-Through careful analysis, we demonstrate that the overapproximation guarantees
-provided by \sketchname are sufficient for correctness, while significantly
-improving efficiency and scalability. Our approach unlocks new possibilities for
+protocols: STO~\cite{bernstein1987concurrency}, MVTO~\cite{reed1983mvto}, and
+TicToc~\cite{yu2016tictoc}. We further describe the design and implementation of
+\sketchname, a novel approximate timestamp storage approach. Through careful
+analysis, we demonstrate that the overapproximation guarantees provided by
+\sketchname are sufficient for correctness, while significantly improving
+efficiency and scalability. Our approach unlocks new possibilities for
 optimizing disk-based storage systems without sacrificing correctness guarantees
 required by transactional workloads.
 

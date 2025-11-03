@@ -1,10 +1,11 @@
 Storage technologies in production environments span several orders of magnitude
-in performance---from traditional hard disk drives (HDDs) with millisecond 
-latencies to emerging byte-addressable storage like CXL-based flash approaching 
-DRAM-like speeds. Since \sketchname enables modern timestamp-based concurrency 
-control for disk-based key-value stores, evaluating its effectiveness across this 
-performance spectrum is critical for understanding both current deployment 
-opportunities and future applicability as storage technologies continue to evolve.
+in performance---from traditional hard disk drives (HDDs) with millisecond
+latencies~\cite{samsung2013ssd} to emerging byte-addressable storage like
+CXL-based flash approaching DRAM-like speeds~\cite{yang2023overcoming}. Since
+\sketchname enables modern timestamp-based concurrency control for disk-based
+key-value stores, evaluating its effectiveness across this performance spectrum
+is critical for understanding both current deployment opportunities and future
+applicability as storage technologies continue to evolve.
 
 This chapter presents a comprehensive evaluation across slow storage (SATA SSD and 
 HDD) in Section~\ref{sec:slow-storage} and fast storage (emulated CXL-based flash) 
@@ -1003,9 +1004,10 @@ This section presents \sketchname's performance on fast storage, revealing the f
 \subsection{CXL Emulation Methodology}
 
 To evaluate \sketchname's effectiveness on next-generation storage technologies,
-we emulate CXL-based flash storage using block ramdisk. This subsection details
-our emulation methodology, the assumptions we make, and how our results relate to
-real CXL hardware.
+we emulate CXL-based flash storage using block
+ramdisk~\cite{linuxkernel_ramdisk}. This subsection details our emulation
+methodology, the assumptions we make, and how our results relate to real CXL
+hardware.
 
 \subsubsection{Emulation Setup}
 
@@ -1018,14 +1020,6 @@ evaluate \sketchname's behavior when storage access times are dramatically reduc
 without requiring specialized CXL hardware that may not be readily available in
 experimental environments.
 
-The emulated storage provides latencies approximately 100$\times$ faster than SATA
-SSD and 10$\times$ faster than NVMe SSD, closely approximating the characteristics
-of next-generation CXL-based storage. Specifically, while NVMe SSDs achieve
-latencies in the 20--100 microsecond range, CXL-based storage targets latencies in
-the single-digit microsecond range (1--10 microseconds). Our block ramdisk
-emulation achieves latencies on the order of hundreds of nanoseconds, providing a
-reasonable approximation of CXL performance characteristics for the purpose of
-understanding how \sketchname scales as storage becomes faster.
 
 \subsubsection{Assumptions and Limitations}
 

@@ -7,48 +7,51 @@ use Concurrency Control (CC) methods that make sure the results are as if the
 transactions happened one after another. For many years, choosing the right CC
 method has forced system designers to accept a tough trade-off.
 
-On one side, traditional lock-based methods like Two-Phase Locking (2PL) are
-common. These methods do not need much memory because locks are only needed for
-the data items being used at any moment. However, lock-based methods can make
-the CPU do a lot of extra work, because transactions need to get and hold locks,
-sometimes for a long time. This holding of locks can force transactions to wait
-for each other, which reduces how many can happen at the same time and causes
-performance problems, especially when there are many transactions.
+On one side, traditional lock-based methods like Two-Phase Locking
+(2PL)~\cite{eswaran1976notions} are common. These methods do not need much
+memory because locks are only needed for the data items being used at any
+moment. However, lock-based methods can make the CPU do a lot of extra work,
+because transactions need to get and hold locks, sometimes for a long time. This
+holding of locks can force transactions to wait for each other, which reduces
+how many can happen at the same time and causes performance problems, especially
+when there are many transactions.
 
 On the other side are timestamp-based methods, such as Strict Timestamp Ordering
-(STO), Multi-Version Timestamp Ordering (MVTO), and newer types like TicToc.
+(STO)~\cite{bernstein1987concurrency}, Multi-Version Timestamp Ordering
+(MVTO)~\cite{reed1983mvto}, and newer types like TicToc~\cite{yu2016tictoc}.
 These use timestamps to decide the order of transactions, often allowing for
 more concurrency and fewer aborted transactions. But in databases where data is
 stored on disk, timestamp-based methods come with a big drawback: they create a
 lot of extra storage and I/O overhead. They have to keep track of read and write
 timestamps for every row of data, and if these timestamps are kept on disk,
 every operation on the data could make the system do more slow I/O operations.
-For example, in a basic STO system, just reading a data item means also writing
-its read timestamp back to disk. Updating a row also requires reading its old
-timestamps before doing anything. This extra metadata overhead turns simple,
-fast operations into slower ones that involve both reading and writing, reducing
-the system's performance.
+For example, in a basic STO system~\cite{bernstein1987concurrency}, just reading
+a data item means also writing its read timestamp back to disk. Updating a row
+also requires reading its old timestamps before doing anything. This extra
+metadata overhead turns simple, fast operations into slower ones that involve
+both reading and writing, reducing the system's performance.
 
 One might think that modern, fast storage devices like NVMe solid-state drives
-(SSDs) would solve this problem, but they do not. NVMe SSDs are much faster than
-older drives, but they actually make this trade-off more obvious. With such fast
-storage, the delays caused by lock-based protocols become more pronounced, since
-the system is often waiting for the CPU rather than the storage. At the same
-time, if timestamp metadata is kept on disk, the SSDs' high speed is wasted
-dealing with many small metadata I/O operations. As a result, no matter which
-method is chosen—CPU-heavy locks or I/O-heavy timestamps—the system ends up
-limited by either CPU or storage. This makes it hard for designers to fully
-use the power of new hardware.
+(SSDs)~\cite{crucial-t700-review} would solve this problem, but they do not.
+NVMe SSDs are much faster than older drives, but they actually make this
+trade-off more obvious. With such fast storage, the delays caused by lock-based
+protocols become more pronounced, since the system is often waiting for the CPU
+rather than the storage. At the same time, if timestamp metadata is kept on
+disk, the SSDs' high speed is wasted dealing with many small metadata I/O
+operations. As a result, no matter which method is chosen—CPU-heavy locks or
+I/O-heavy timestamps—the system ends up limited by either CPU or storage. This
+makes it hard for designers to fully use the power of new hardware.
 
 
-\section{\sketchname: A New Approach for Timestamp-Based Concurrency Control on Disk}
+\section{\sketchname: A New Approach for Timestamp-Based CC on Disk}
 
 The first main contribution of this dissertation is a new approach for efficient
 timestamp-based concurrency control in disk-based databases. This approach is
 called \sketchname. The main idea behind \sketchname is to decompose traditional
 timestamp-based concurrency control mechanisms into two components: (1) the CC
-protocol itself (such as STO or TicToc), and (2) an approximate storage system
-for timestamps, which is called \sketchname.
+protocol itself (such as STO~\cite{bernstein1987concurrency} or
+TicToc~\cite{yu2016tictoc}), and (2) an approximate storage system for
+timestamps, which is called \sketchname.
 
 This decomposition helps because, in reality, only a small fraction of the
 database keys are being accessed by currently active transactions at any given
@@ -68,9 +71,10 @@ fast data structure, with two key components:
     counting mechanism ensures that as long as a key is needed by a transaction,
     its timestamp remains exact.
     \item \textbf{A Sketch (Peripheral Region):} This component, inspired by
-    structures like the Count-Min Sketch, keeps approximate upper bounds for
-    inactive keys. When a key becomes inactive (its reference count falls to
-    zero), its last timestamp is moved from the hash table to this sketch.
+    structures like the Count-Min Sketch~\cite{CormodeMu05}, keeps approximate
+    upper bounds for inactive keys. When a key becomes inactive (its reference
+    count falls to zero), its last timestamp is moved from the hash table to
+    this sketch.
 \end{enumerate}
 
 Thanks to this hybrid structure, many slow and costly disk accesses for
@@ -81,10 +85,11 @@ in experiments).
 
 With the problem of metadata I/O removed, the high-performance concurrency
 control protocols can be adapted for disk-based databases. Experiments with the
-SplinterDB key-value store demonstrate that \sketchname has a large impact:
-using \sketchname, advanced protocols like TicToc can reach speeds up to 14
-times faster than traditional 2PL and OCC, and up to 5.9 times faster than
-standard disk-based timestamp methods on some workloads.
+SplinterDB key-value store~\cite{splinterdb} demonstrate that \sketchname has a
+large impact: using \sketchname, advanced protocols like TicToc can reach speeds
+up to 14 times faster than traditional 2PL and KR-OCC~\cite{kung1981optimistic},
+and up to 5.9 times faster than standard disk-based timestamp methods on some
+workloads.
 
 \section{Research Question: \sketchname Applicability}
 
@@ -103,7 +108,7 @@ dramatically. The goal is to determine if the key idea behind \sketchname is
 broadly reliable and future-proof, or if it is mainly a solution for today's
 specific hardware.
 
-\section{A Taxonomy of Storage Performance: From Milliseconds to Nanoseconds}
+\section{A Taxonomy of Storage Performance}
 
 To make the analysis concrete, we first summarize the important technical
 differences among the storage devices considered. These differences are not only
@@ -115,27 +120,29 @@ interacts with the database and concurrency control systems.
     by moving parts, such as spinning platters and moving arms. As a result,
     their access times are dominated by seek and rotation delays, leading to
     average latencies in the 5-20 millisecond range. Their performance for
-    random I/O is poor, typically capable of only 100-200 IOPS.
+    random I/O is poor, typically capable of only 100-200
+    IOPS~\cite{samsung2013ssd}.
     \item \textbf{SATA SSDs:} These solid-state drives are much faster than HDDs
     since they have no moving parts. However, common SATA SSDs are limited by
     the older SATA interface and AHCI protocol, which were designed for spinning
     disks and do not take full advantage of flash memory's capability to handle
     many requests in parallel. This puts their latency in the 100-500
-    microsecond range, and throughput is about 600 MB/s.
+    microsecond range, and throughput is about 600 MB/s~\cite{samsung2013ssd}.
     \item \textbf{NVMe SSDs:} The NVMe standard connects SSDs directly to the
     CPU using the PCIe bus and supports high degrees of parallelism (up to
     64,000 command queues), leading to another big increase in speed. Newer NVMe
     SSDs can achieve latencies as low as 20-100 microseconds, random read IOPS
-    above 1 million, and sequential throughput over 7,000 MB/s. This was the
-    platform where \sketchname was first tested.
-    \item \textbf{CXL-based SSDs:} Compute Express Link (CXL) is the newest type
-    of storage that tries to remove the distinction between memory and storage.
-    These devices connect through PCIe but use the CXL.mem protocol, meaning the
-    CPU can read their contents through direct memory instructions, like main
-    memory. This eliminates traditional storage software overhead and the device
-    looks like a memory-only node. Access is not as fast as regular DRAM, but
-    much faster than NVMe SSDs, with latency in the single-digit microsecond
-    range.
+    above 1 million, and sequential throughput over 7,000
+    MB/s~\cite{crucial-t700-review}. This was the platform where \sketchname was
+    first tested.
+    \item \textbf{CXL-based SSDs:} Compute Express Link (CXL)-based SSDs is the
+    newest type of storage that tries to remove the distinction between memory
+    and storage~\cite{yang2023overcoming}. These devices connect through PCIe
+    but use the CXL.mem protocol, meaning the CPU can read their contents
+    through direct memory instructions, like main memory. This eliminates
+    traditional storage software overhead and the device looks like a
+    memory-only node. Access is not as fast as regular DRAM, but much faster
+    than NVMe SSDs, with latency in the single-digit microsecond range.
 \end{itemize}
 
 These major differences are shown in \Cref{tab:storage-characteristics}, which
@@ -143,7 +150,8 @@ provides the performance data used in the analyses that follow.
 
 \begin{table}[h]
 \centering
-\caption{Comparative Performance Characteristics of Storage Media}
+\caption{Comparative Performance Characteristics of Storage
+Media~\cite{samsung2013ssd, crucial-t700-review, yang2023overcoming}}
 \label{tab:storage-characteristics}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccc}
