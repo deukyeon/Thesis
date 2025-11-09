@@ -38,17 +38,16 @@ storage wastes the storage device's speed on frequent small metadata
 operations.
 
 This dissertation introduces a novel approach that eliminates this fundamental
-trade-off through approximate timestamp storage. We demonstrate that
+trade-off through approximate timestamp storage and demonstrates that
 timestamp-based concurrency control protocols---specifically Strict Timestamp
 Ordering (STO), Multi-Version Timestamp Ordering (MVTO), and TicToc---can
-maintain correctness (serializability) even when timestamps are
-overapproximated for inactive keys, as long as active keys maintain exact
-timestamps throughout their transaction lifetime. This key insight enables us
-to design \sketchname, a hybrid data structure combining a hash table for exact
-timestamps of active keys with a probabilistic sketch for approximate upper
-bounds of inactive keys.
+maintain correctness (serializability) even when timestamps are overapproximated
+for inactive keys, as long as active keys maintain exact timestamps throughout
+their transaction lifetime. This key insight enables designing \sketchname, a
+hybrid data structure combining a hash table for exact timestamps of active keys
+with a probabilistic sketch for approximate upper bounds of inactive keys.
 
-Our first contribution is the design, implementation, and evaluation of
+The first contribution is the design, implementation, and evaluation of
 \sketchname integrated with STO, MVTO, and TicToc in the SplinterDB key-value
 store. \sketchname achieves nearly the idealized performance while requiring only
 minimal memory---as little as 32KiB for an 80GB database---by eliminating the
@@ -57,25 +56,29 @@ Experimental evaluation on modern NVMe SSDs demonstrates that TicToc with
 \sketchname achieves up to 14$\times$ higher goodput than traditional two-phase
 locking, up to 5.9$\times$ higher goodput than disk-based timestamp storage.
 
-Our second contribution is a comprehensive analytical and experimental study
+The second contribution is a comprehensive analytical and experimental study
 evaluating \sketchname across the entire storage performance spectrum, from
 traditional hard disk drives with millisecond latencies to emerging CXL-based
-storage approaching DRAM-like speeds. This evaluation reveals that \sketchname's
+storage approaching DRAM-like speeds. The evaluation reveals that \sketchname's
 benefits scale with the fundamental gap between local memory and remote storage
 access, ensuring its continued relevance as storage technology evolves. On slow
-storage (HDDs and SATA SSDs), \sketchname eliminates the prohibitive overhead of
-timestamp disk accesses, achieving improvements of up to 569\% over disk-based
-timestamp storage. On fast storage (simulated CXL-based SSDs), where systems
-transition from I/O-bound to CPU-bound, \sketchname continues to provide
-substantial benefits by keeping timestamp metadata in fast local memory,
-enabling timestamp-based protocols to significantly outperform traditional
-approaches.
+storage (HDDs and SATA SSDs), \sketchname enables timestamp-based protocols to
+outperform traditional concurrency control methods: on SATA SSD,
+TicToc-\psketchname achieves up to 6.89$\times$ and 2.52$\times$ higher goodput
+than two-phase locking (2PL) and KR-OCC, respectively, while on HDD it reaches
+up to 1.8$\times$ the goodput of KR-OCC. \sketchname also eliminates the
+prohibitive overhead of timestamp disk accesses, achieving improvements of up to
+569\% over disk-based timestamp storage. On fast storage (simulated CXL-based
+SSDs), where systems transition from I/O-bound to CPU-bound, \sketchname
+continues to provide substantial benefits by keeping timestamp metadata in fast
+local memory, enabling timestamp-based protocols to significantly outperform
+traditional approaches.
 
-Together, these contributions establish approximate timestamp storage as a
-universally applicable and future-ready approach for high-performance
-transaction processing. \sketchname demonstrates that approximate metadata
-management can unlock advanced concurrency control designs that would otherwise
-be impractical, providing a practical solution that enables efficient
-timestamp-based concurrency control across diverse storage technologies while
-requiring only minimal memory overhead.
+Together, these contributions establish that approximate, in-memory metadata
+management enables high-performance transaction processing for disk-based
+databases. \sketchname demonstrates that approximate metadata management can
+unlock advanced concurrency control designs that would otherwise be impractical,
+providing a practical solution that enables efficient timestamp-based
+concurrency control across diverse storage technologies while requiring only
+minimal memory overhead.
 

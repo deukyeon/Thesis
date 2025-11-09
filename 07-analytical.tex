@@ -9,50 +9,61 @@ opportunities and future applicability as storage technologies continue to
 evolve.
 
 This chapter presents a comprehensive evaluation across slow storage (SATA SSD
-and HDD) in Section~\ref{sec:slow-storage} and fast storage (simulated CXL-based
-SSDs) in Section~\ref{sec:fast-storage} to reveal how \sketchname's benefits
-and trade-offs evolve with storage characteristics. Our analysis demonstrates
-that \sketchname remains effective across this wide range, though the nature of
-its advantages changes fundamentally as storage performance improves.
+and HDD) in \Cref{sec:slow-storage} and fast storage (simulated CXL-based
+SSDs) in \Cref{sec:fast-storage} to reveal how \sketchname's benefits and
+trade-offs evolve with storage characteristics. The analytical evaluation
+demonstrates that \sketchname remains effective across this wide range, though
+the nature of its advantages changes fundamentally as storage performance
+improves.
 
 
 \section{Slow Storage}\label{sec:slow-storage}
 
-We begin our evaluation with slow storage scenarios, which represent traditional
-disk-based systems where storage latency significantly impacts transaction
-processing performance. On slow storage, disk I/O becomes the dominant bottleneck,
-making the elimination of timestamp disk accesses provided by \sketchname 
-particularly valuable. These results demonstrate how \sketchname performs under
-challenging storage conditions and reveal its effectiveness when storage 
-characteristics fundamentally limit transaction throughput.
+Slow storage represents traditional disk-based systems where storage latency
+significantly impacts transaction processing performance. On slow storage, disk
+I/O becomes the dominant bottleneck, making the elimination of timestamp disk
+accesses provided by \sketchname particularly valuable. The results demonstrate
+how \sketchname performs under challenging storage conditions and reveal its
+effectiveness when storage characteristics fundamentally limit transaction
+throughput.
 
-We use the same workloads and evaluation methods as in Section~\ref{sec:eval}.
-For slow storage setups, we run experiments using both SATA SSD and HDD. The
-SATA SSD experiments are run on the same type of machine as the NVMe SSD tests,
-with only the storage hardware changed. However, for the HDD tests, we use a
-different machine because CloudLab does not offer the same machines with HDDs.
-Using SATA SSD allows us to compare results fairly with NVMe SSD and other
-faster storage. The HDD experiments demonstrate how \sketchname performs on a
-real HDD disk, helping us understand its behavior in truly slow storage
-situations.
+On slow storage media, the traditional CC methods, 2PL and KR-OCC, are the most
+relevant baselines because they do not depend on on-disk timestamp metadata;
+this avoids extra random I/O overhead on the critical path. Accordingly,
+\sketchname is primarily compared against 2PL and KR-OCC, and Disk/Disk-Cache
+timestamp variants are used as secondary references to quantify the penalty of
+persisting timestamps on slow devices.
 
-This section evaluates \sketchname on slow storage media, revealing the following:
+The same workloads and evaluation methods as in \Cref{sec:eval} are used.
+For slow storage setups, both SATA SSD and HDD are used. The SATA SSD
+experiments are conducted on the same type of machine as the NVMe SSD tests,
+with only the storage hardware changed. However, for the HDD tests, different
+machines are used because CloudLab does not offer the same machines with HDDs.
+Using SATA SSD allows comparing results fairly with NVMe SSD and other faster
+storage. The HDD experiments demonstrate how \sketchname variants perform on a
+real HDD disk, helping understand its behavior in truly slow storage situations.
+
+This section evaluates \sketchname on slow storage media, highlighting the
+following:
 \begin{itemize}
-    \item \sketchname variants achieve significant performance improvements
-    across both SATA SSD and HDD, with up to 569\% and 519\% higher goodput than
-    Disk variants in write-intensive, high-contention workloads on SATA SSD and
-    HDD, respectively. TicToc-\psketchname outperforms 2PL and KR-OCC by up to
-    6.89$\times$ and 2.52$\times$ on SATA SSD, and achieves 1.8$\times$ faster
-    than KR-OCC on HDD.
-    
-    \item \sketchname demonstrates effectiveness across diverse workload types,
-    with up to 60\% higher goodput than Disk variants and up to 24\% and 59\% over
-    2PL and KR-OCC in mixed-transaction workloads. For medium-contention workloads,
-    \sketchname improves goodput by up to 19\% and 121\% for read-intensive and
-    write-intensive workloads on HDD. In TPC-C with 4 warehouses,
-    STO-\psketchname and TicToc-\psketchname achieve up to 1.25$\times$ and
-    1.18$\times$ better goodput than 2PL/KR-OCC on HDD, demonstrating consistent
-    benefits across synthetic and realistic benchmarks.
+    \item \Sketchname enables timestamp-based CC to outperform 2PL and KR-OCC in
+    high-contention workloads. On SATA SSD, TicToc-\psketchname is up to
+    6.89$\times$ and 2.52$\times$ faster than 2PL and KR-OCC, respectively; on
+    HDD it achieves 1.8$\times$ the goodput of KR-OCC. Relative to Disk
+    variants, \sketchname removes costly timestamp reads, reaching up to 569\%
+    (SATA) and 519\% (HDD) higher goodput in write-intensive cases.
+
+    \item Across mixed and long-transaction workloads on slow storage,
+    \sketchname continues to exceed 2PL/KR-OCC. In mixed YCSB, it delivers up to
+    1.24$\times$ and 1.59$\times$ better goodput than 2PL and KR-OCC,
+    respectively, while also improving up to 60\% over Disk variants by
+    eliminating timestamp I/O. Under medium contention on HDD, where I/O
+    dominates, \sketchname still lifts goodput by up to 19\% (read-intensive)
+    and 121\% (write-intensive) versus Disk. 
+
+    \item In TPC-C with 4 warehouses, STO-\psketchname and TicToc-\psketchname
+    reach up to 1.25$\times$ and 1.18$\times$ better goodput than 2PL/KR-OCC on
+    HDD, showing benefits across synthetic and realistic benchmarks.
 \end{itemize}
 
 \subsection{SATA SSD}
@@ -180,27 +191,26 @@ This section evaluates \sketchname on slow storage media, revealing the followin
     \label{fig:ycsb:slow_ssd}
 \end{figure}
 
-Figure~\ref{fig:ycsb:slow_ssd} presents the goodput of all our timestamp-based
-concurrency control (CC) variants on four YCSB small-transaction workloads using
-slow SSD storage. The patterns in the results are similar to those shown in
-Section~\ref{sec:eval} for NVMe SSD. The \sketchname variants regularly achieve
-goodput very close to the Memory setup, which shows that they remain effective
-even when storage is slower.
+\Cref{fig:ycsb:slow_ssd} presents the goodput of all timestamp-based concurrency
+control variants on four YCSB small-transaction workloads using slow SSD
+storage. The patterns in the results are similar to those shown in
+\Cref{sec:eval} for NVMe SSD. The \sketchname variants regularly achieve goodput
+very close to the Memory setup, which shows that they remain effective even when
+storage is slower.
 
 In read-intensive workloads, the \sketchname variants (\fsketchname and
-\psketchname) almost match the goodput of the Memory setup. They improve goodput
-by as much as 39\% compared to the Disk variant when contention is high, and up
-to 23\% better in medium-contention situations. The TicToc-\psketchname setup in
-particular is 1.65$\times$ and 1.19$\times$ faster than 2PL and KR-OCC,
-respectively, in workloads with high contention.
+\psketchname) outperform the slow-storage baselines: TicToc-\psketchname is
+1.65$\times$ and 1.19$\times$ faster than 2PL and KR-OCC, respectively, under
+high contention, while almost matching the Memory setup. They also improve
+goodput by as much as 39\% compared to Disk variants when contention is high,
+and up to 23\% in medium-contention situations.
 
 For write-intensive workloads, the difference in goodput becomes even greater.
-Here, the \sketchname variants (\fsketchname and \psketchname) again produce
-goodput close to the Memory variant. In high-contention cases, they boost
-goodput by up to 569\% over the Disk variant, and by up to 119\% when contention
-is medium. The TicToc-\psketchname configuration shows especially strong
-results, delivering 6.89$\times$ and 2.52$\times$ higher goodput than 2PL and
-KR-OCC, respectively, for high-contention workloads.
+The \sketchname variants again stay close to Memory and clearly exceed 2PL and
+KR-OCC: under high contention, TicToc-\psketchname delivers 6.89$\times$ and
+2.52$\times$ higher goodput than 2PL and KR-OCC, respectively. Relative to Disk
+variants, they boost goodput by up to 569\% in high contention and 119\% in
+medium contention.
 
 TicToc is a timestamp-based CC protocol designed for high concurrency. Paired
 with \sketchname, it delivers the best performance across all workloads because
@@ -294,12 +304,12 @@ turning writes into reads. \sketchname effectively mitigates this overhead.
 
 In \Cref{fig:ycsb:mixed:slow_ssd}, both \sketchname variants show strong
 performance in mixed-transaction settings on slow SSD. In high-contention
-scenarios, \sketchname offers up to 60\% higher goodput than the Disk variants.
-It also outperforms 2PL and KR-OCC, with goodput increases of up to 1.24$\times$ and
-1.59$\times$, respectively.
+scenarios, \sketchname outperforms 2PL and KR-OCC by up to 1.24$\times$ and
+1.59$\times$, respectively. It also offers up to 60\% higher goodput than the
+Disk variants by avoiding timestamp I/O.
 
 Under medium contention, the goodputs of these systems are mainly limited by
-slow disk access. Unlike our evaluation with NVMe SSDs described in
+slow disk access. Unlike the evaluation with NVMe SSDs described in
 \Cref{sec:eval}, the concurrency control method has little effect on overall
 goodput. However, since the Disk variants must fetch timestamps from the disk,
 there is extra overhead, resulting in lower goodput. \sketchname avoids this
@@ -367,13 +377,12 @@ disk overhead and can improve goodput by up to 40\%.
 
 
 \Cref{fig:ycsb:long:slow_ssd} presents the goodput results for the
-long-transaction workload on slow SSD. The main pattern is similar to previous
-results: the \sketchname variants achieve higher goodput than their Disk
-versions and 2PL/KR-OCC. Because the disk is slow, long transactions run more
-slowly and the differences between each method are smaller than with the faster
-NVMe SSD shown in \Cref{fig:ycsb:long}. Still, although \sketchname is not as
-effective as with NVMe SSD, it continues to deliver the best performance among
-all tested protocols.
+long-transaction workload on slow SSD. The main pattern mirrors prior sections:
+the \sketchname variants maintain higher goodput than 2PL/KR-OCC and their Disk
+versions. Because the disk is slow, long transactions run more slowly and the
+differences between methods are smaller than with NVMe SSD
+(\Cref{fig:ycsb:long}). Even so, \sketchname continues to deliver the best
+performance among all tested protocols.
 
 
 
@@ -497,39 +506,37 @@ all tested protocols.
     \label{fig:tpcc:slow_ssd}
 \end{figure*}
 
-Figure~\ref{fig:tpcc:slow_ssd} shows the goodput for the same TPC-C workloads
-described in \Cref{sec:eval-setup}. In general, the results show that the
-\sketchname variants achieve higher goodput than the Disk variants because they
-remove the I/O overhead caused by accessing timestamps. When compared to 2PL,
-\sketchname variants achieve better goodput in high-contention cases,
-specifically with 4 and 8 warehouses. However, 2PL performs a bit better than
-TicToc with \sketchname. This difference comes from their abort patterns: 2PL is
-more likely to abort \texttt{Payment} transactions, which are shorter, while
-TicToc more often aborts the longer \texttt{NewOrder} transactions. For example,
-in the 32-warehouse scenario, 93\% of aborts in 2PL are from \texttt{Payment}
-transactions, but in TicToc, 79\% of aborts are from \texttt{NewOrder}
-transactions. Because TicToc must re-execute aborted transactions, this hurts
-its goodput, especially in environments with slow disks. As a result,
-TicToc-\psketchname is 0.89$\times$ as fast as 2PL in the 32-warehouse case, but
-in the 4-warehouse scenario, it is 1.5$\times$ faster than 2PL.
+\Cref{fig:tpcc:slow_ssd} shows the goodput for the same TPC-C workloads
+described in \Cref{sec:eval-setup}. Compared to 2PL, \sketchname variants
+achieve better goodput in high-contention cases (4 and 8 warehouses) by avoiding
+on-disk timestamp metadata. At lower contention, 2PL can be competitive with
+TicToc-\sketchname on slow disks due to abort patterns: 2PL more often aborts
+shorter \texttt{Payment} transactions, whereas TicToc tends to abort longer
+\texttt{NewOrder} transactions. For example, in the 32-warehouse scenario, 93\%
+of aborts in 2PL are \texttt{Payment}, while 79\% in TicToc are
+\texttt{NewOrder}. Re-executing longer transactions harms TicToc goodput on slow
+disks, making TicToc-\psketchname 0.89$\times$ as fast as 2PL at 32 warehouses,
+but 1.5$\times$ faster at 4 warehouses. Relative to Disk variants, \sketchname
+consistently removes timestamp I/O and improves goodput.
 
-Having examined SATA SSD performance, we now turn to HDDs to evaluate \sketchname
-under even more challenging storage conditions. HDDs represent the slowest storage
-type in our evaluation, with latencies measured in milliseconds rather than
-microseconds. This allows us to observe how \sketchname's effectiveness scales
-as storage becomes increasingly I/O-bound and to understand its behavior in truly
-slow storage environments where disk access dominates all other factors.
+Having examined SATA SSD performance, the evaluation now turns to HDDs to evaluate
+\sketchname under even more challenging storage conditions. HDDs represent the
+slowest storage type in this evaluation, with latencies measured in milliseconds
+rather than microseconds. This allows observing how \sketchname's effectiveness
+scales as storage becomes increasingly I/O-bound and understanding its behavior
+in truly slow storage environments where disk access dominates all other
+factors.
 
 
 \subsection{HDD}
 
 Hard disk drives (HDDs) are still widely used today for storing very large
 amounts of data because they are inexpensive and can hold a lot of information.
-For these experiments, we used a different server since CloudLab does not
-provide the same machine with an HDD. The system we used for our HDD evaluation
+For these experiments, a different machine is used since CloudLab does not
+provide the same machine with an HDD. The system used for the HDD evaluation
 has a 36-core Intel(R) Xeon(R) Gold 6154 CPU running at 3.00GHz (with 2 threads
 per core), 192GiB of DDR4 2666 MHz memory, and an 893GiB SCSI HDD. In these
-tests, we used 60 threads because the version of SplinterDB we ran requires
+tests, 60 threads are used because the version of SplinterDB used requires
 keeping some CPU cores available.
 
 
@@ -953,7 +960,7 @@ goodput.
     \label{fig:tpcc:hdd}
 \end{figure*}
 
-Figure~\ref{fig:tpcc:hdd} presents the goodput results for the TPC-C workloads
+\Cref{fig:tpcc:hdd} presents the goodput results for the TPC-C workloads
 described in \Cref{sec:eval-setup}, but now running on an HDD. As seen with the
 YCSB experiments on HDD, \sketchname performs very well in high-contention
 situations with a small number of warehouses. When contention is lower, however,
@@ -966,34 +973,33 @@ STO-\psketchname and TicToc-\psketchname achieve up to 1.25$\times$ and
 
 \section{Fast Storage}\label{sec:fast-storage}
 
-Having demonstrated \sketchname's effectiveness on slow storage, we now evaluate
-its performance on fast storage media, such as CXL-based SSDs with DRAM-like 
-latency. This evaluation reveals a fundamental shift in performance 
-characteristics: as storage becomes faster, the system transitions from being 
-I/O-bound to CPU-bound, making the overhead of the \sketchname data structure 
-itself more visible relative to storage access costs. These results provide 
-insights into how \sketchname variants scale as storage technologies continue to 
+Having demonstrated \sketchname's effectiveness on slow storage, the evaluation
+now examines its performance on fast storage media, such as CXL-based SSDs with
+DRAM-like latency. The evaluation reveals a fundamental shift in performance
+characteristics: as storage becomes faster, the system transitions from being
+I/O-bound to CPU-bound, making the overhead of the \sketchname data structure
+itself more visible relative to storage access costs. These results provide
+insights into how \sketchname variants scale as storage technologies continue to
 evolve toward lower latencies.
 
 This section presents \sketchname's performance on fast storage, revealing the following:
 \begin{itemize}
     \item On fast storage (simulated DRAM-like latency storage), \sketchname
     demonstrates dramatic performance advantages over traditional concurrency
-    control. TicToc-\psketchname achieves up to 3.55$\times$ and 21.5$\times$
-    higher goodput than 2PL and KR-OCC in high-contention workloads, with up to
-    286\% improvement over TicToc-Disk. STO-\psketchname achieves up to
-    11.9--70.6$\times$ more goodput than KR-OCC (and up to 1.41$\times$ more
-    than 2PL) in TPC-C, demonstrating that timestamp-based methods excel when
-    storage latency is no longer the bottleneck.
-    
-    \item Performance improvements extend consistently across synthetic and
-    realistic benchmarks. In write-intensive workloads, TicToc-\psketchname is
-    2.12$\times$ and 3.16$\times$ faster than 2PL and KR-OCC, with 200\% improvement
-    over TicToc-Disk. For mixed-transaction workloads, TicToc-\psketchname achieves
-    1.78$\times$ and 24.3$\times$ higher throughput than 2PL and KR-OCC, with 77\%
-    improvement over TicToc-Disk. TPC-C results show 34--45\% and 107--150\%
-    improvements over Disk variants for TicToc and STO, respectively, across all
-    contention levels.
+    control across all workload types. In high-contention, read-intensive
+    workloads, TicToc-\psketchname achieves up to 3.55$\times$ and 21.5$\times$
+    higher goodput than 2PL and KR-OCC, respectively, with up to 286\%
+    improvement over TicToc-Disk. In write-intensive workloads,
+    TicToc-\psketchname is 2.12$\times$ and 3.16$\times$ faster than 2PL and
+    KR-OCC, with 200\% improvement over TicToc-Disk. For mixed-transaction
+    workloads, TicToc-\psketchname achieves 1.78$\times$ and 24.3$\times$ higher
+    throughput than 2PL and KR-OCC, with 77\% improvement over TicToc-Disk.
+    TPC-C results show consistent improvements: TicToc-\psketchname achieves
+    34--45\% higher goodput than TicToc-Disk across all contention levels, while
+    STO-\psketchname achieves up to 11.9--70.6$\times$ more goodput than KR-OCC
+    (and up to 1.41$\times$ more than 2PL) with 107--150\% improvement over
+    STO-Disk, demonstrating that timestamp-based methods excel when storage
+    latency is no longer the bottleneck.
     
     \item As storage becomes faster, \sketchname variants exhibit overhead from
     hash table operations, memory allocation, and sketch eviction that create a
@@ -1007,26 +1013,26 @@ This section presents \sketchname's performance on fast storage, revealing the f
 \subsection{CXL Simulation Methodology}
 
 To evaluate \sketchname's effectiveness on next-generation storage technologies,
-we simulate CXL-based SSDs storage using block
-ramdisk~\cite{linuxkernel_ramdisk}. This subsection details our simulation
-methodology, the assumptions we make, and how our results relate to real CXL
+CXL-based SSDs storage is simulated using block
+ramdisk~\cite{linuxkernel_ramdisk}. This subsection details the simulation
+methodology, the assumptions made, and how these results relate to real CXL
 hardware.
 
 \subsubsection{Simulation Setup}
 
-We use block ramdisk on the same CloudLab machine described in
+Block ramdisk is used on the same CloudLab machine described in
 \Cref{sec:eval-setup} to simulate CXL-based SSDs with DRAM-like latency. Block
 ramdisk provides storage access through the standard block device interface
 while storing data in RAM, effectively creating a software-based storage layer
 that mimics the low latency characteristics of memory-like storage technologies.
-This approach allows us to evaluate \sketchname's behavior when storage access
+This approach allows evaluating \sketchname's behavior when storage access
 times are dramatically reduced without requiring specialized CXL hardware that
 may not be readily available in experimental environments.
 
 
 \subsubsection{Assumptions and Limitations}
 
-Our simulation makes several important assumptions that should be considered
+The simulation makes several important assumptions that should be considered
 when interpreting results:
 
 \begin{itemize}
@@ -1034,34 +1040,34 @@ when interpreting results:
     device interface, whereas real CXL storage may support byte-addressable
     access through the CXL.mem protocol. This difference may affect the relative
     performance of different access patterns, though the fundamental latency
-    characteristics we seek to simulate are preserved.
+    characteristics the simulation seeks to capture are preserved.
     
     \item \textbf{Bandwidth characteristics}: Real CXL storage provides high
-    bandwidth (up to 16 GB/s on PCIe 5.0 x4), whereas our simulation is limited
-    by system RAM bandwidth. However, since our evaluation focuses on
+    bandwidth (up to 16 GB/s on PCIe 5.0 x4), whereas the simulation is limited
+    by system RAM bandwidth. However, since the evaluation focuses on
     latency-bound operations (random I/O for timestamp access), bandwidth
-    differences have minimal impact on our findings.
+    differences have minimal impact on the findings.
     
     \item \textbf{Remote memory effects}: Real CXL storage may exhibit NUMA-like
-    behavior with remote memory access characteristics. Our simulation does not
+    behavior with remote memory access characteristics. The simulation does not
     capture these effects, though \sketchname's effectiveness in avoiding remote
     access overhead remains valid.
     
-    \item \textbf{CPU overhead}: Block ramdisk still incurs some software overhead
-    from the block device stack, whereas real CXL storage with direct memory access
-    may have different overhead characteristics. However, this overhead is minimal
-    compared to actual storage latency and does not materially affect our
-    conclusions.
+    \item \textbf{CPU overhead}: Block ramdisk still incurs some software
+    overhead from the block device stack, whereas real CXL storage with direct
+    memory access may have different overhead characteristics. However, this
+    overhead is minimal compared to actual storage latency and does not
+    materially affect the conclusions.
 \end{itemize}
 
 \subsubsection{Experimental Configuration}
 
-In these fast storage experiments, we evaluate only STO and TicToc protocols.
+In these fast storage experiments, only STO and TicToc protocols are evaluated.
 MVTO runs out of memory on the machine with 256GB of memory because its write
 operations keep creating new versions of keys, making it impractical for
-evaluation on fast storage where write rates are extremely high. We run 120
-processing threads for all experiments, matching the configuration used in our
-NVMe SSD evaluations. All other experimental parameters (workloads, database size,
+evaluation on fast storage where write rates are extremely high. 120 processing
+threads are run for all experiments, matching the configuration used in the NVMe
+SSD evaluations. All other experimental parameters (workloads, database size,
 cache configurations) remain consistent with the evaluations described in
 \Cref{sec:eval-setup} to ensure fair comparison across storage types.
 
@@ -1194,7 +1200,7 @@ becomes more pronounced, revealing areas for future optimization.
     \label{fig:ycsb:fast_storage}
 \end{figure}
 
-Figure~\ref{fig:ycsb:fast_storage} presents the goodput results for all our
+\Cref{fig:ycsb:fast_storage} presents the goodput results for all
 timestamp-based concurrency control (CC) variants across four small-transaction
 YCSB workloads when using fast storage. 
 
@@ -1352,7 +1358,7 @@ CC mechanisms across two mixed-transaction YCSB workloads under fast storage
 conditions.
 
 In the high-contention scenario, the trends of the different CC mechanisms are
-similar to what we observed in the small-transaction workloads, but the
+similar to those observed in the small-transaction workloads, but the
 performance gaps are even larger. This is because mixed-transaction workloads
 have a higher fraction of short transactions compared to the small-transaction
 workloads. Looking at the numbers, TicToc-\psketchname achieves 1.78$\times$ and
@@ -1565,7 +1571,7 @@ small transactions on fast storage as well.
 
 \Cref{fig:tpcc_fast} shows the TPC-C benchmark results on fast storage. The
 figure includes both goodput and abort rates for different concurrency control
-methods as we change the number of warehouses (which also changes the contention
+methods as the number of warehouses changes (which also changes the contention
 level). Similar to the YCSB results, both \psketchname and \fsketchname always
 have lower goodput than the Memory version because of extra overheads, but they
 are still much better than the Disk-based methods.
@@ -1577,10 +1583,10 @@ than TicToc-Disk at all contention levels. STO-\psketchname achieves up to 11.9
 to 70.6$\times$ more goodput than KR-OCC and up to 1.41$\times$ more than 2PL,
 and about 107--150\% improvement over STO-Disk in all cases. The TPC-C benchmark
 consists of both short and long transactions, and STO achieves higher goodput
-than TicToc for long transactions. This matches our earlier findings from the
+than TicToc for long transactions. This matches earlier findings from the
 YCSB long-transaction workload in \Cref{fig:ycsb:long_fast}.
 
-Comparing \psketchname and \fsketchname, we see that \psketchname always has
+Comparing \psketchname and \fsketchname, \psketchname always has
 better goodput at every contention level. This is because \psketchname has no
 overhead from sketch evictions. This indicates that \psketchname is a good
 option for deployment on fast storage.
@@ -1590,23 +1596,27 @@ option for deployment on fast storage.
 
 This chapter presents a comprehensive evaluation of \sketchname across diverse
 storage media, from traditional slow storage (SATA SSD and HDD) to modern fast
-storage simulating CXL-based SSDs with DRAM-like latency. Our experimental study
+storage simulating CXL-based SSDs with DRAM-like latency. The experimental study
 reveals several important findings and lessons that guide the adoption and
 future development of \sketchname.
 
 \subsection{Key Findings}
 
-Our evaluation demonstrates that \sketchname remains effective across a wide
+The evaluation demonstrates that \sketchname remains effective across a wide
 range of storage technologies. On slow storage media, including SATA SSD and
-HDD, \sketchname variants consistently achieve goodput close to the idealized
-Memory configuration. The benefits are most pronounced in high-contention,
-write-intensive workloads, where \sketchname improves goodput by up to 569\%
-compared to Disk-based timestamp storage on SATA SSD and up to 519\% on HDD.
-Even in medium-contention scenarios where storage I/O becomes the primary
-bottleneck, \sketchname still provides substantial improvements by eliminating
-the overhead of accessing timestamps from disk.
+HDD, \sketchname enables timestamp-based protocols to outperform traditional
+concurrency control methods. In high-contention, write-intensive workloads on
+SATA SSD, TicToc-\psketchname achieves up to 6.89$\times$ and 2.52$\times$
+higher goodput than two-phase locking (2PL) and KR-OCC, respectively, while in
+read-intensive workloads it reaches 1.65$\times$ and 1.19$\times$ faster than
+2PL and KR-OCC. On HDD, TicToc-\psketchname achieves up to 1.8$\times$ the
+goodput of KR-OCC in write-intensive workloads, and in TPC-C with 4 warehouses,
+STO-\psketchname and TicToc-\psketchname reach up to 1.25$\times$ and
+1.18$\times$ better goodput than 2PL/KR-OCC. Also, \sketchname continues to
+provide substantial improvements over traditional methods by eliminating the
+overhead of accessing timestamps from disk.
 
-On fast storage media, our experiments reveal a different set of
+On fast storage media, the experiments reveal a different set of
 characteristics. Timestamp-based concurrency control methods, when combined with
 \sketchname, significantly outperform 2PL and KR-OCC because they enable higher
 concurrency and result in fewer transaction aborts. For instance,
@@ -1618,16 +1628,18 @@ and key management in the \sketchname data structure itself.
 
 \subsection{Lessons Learned}
 
-Our experimental study yields several important lessons. First, the effectiveness
-of \sketchname varies with storage characteristics. On slow storage, where disk
-I/O dominates performance, \sketchname provides substantial benefits by removing
-the need to access timestamps from persistent storage. On fast storage, while
-\sketchname still outperforms Disk-based approaches, the relative overhead of
-the \sketchname data structure becomes more visible. This suggests that future
-optimizations should focus on reducing this overhead, particularly for
-high-performance storage environments.
+The experimental study yields several important lessons. First, the
+effectiveness of \sketchname varies with storage characteristics, and the
+appropriate baselines vary accordingly. On slow storage (I/O-bound), 2PL and
+KR-OCC are the right baselines because they avoid on-disk timestamp metadata; in
+this regime, \sketchname enables timestamp-based CC to exceed those baselines by
+eliminating timestamp I/O. On fast storage (CPU-bound), while \sketchname still
+outperforms Disk-based approaches and surpasses 2PL/KR-OCC by scaling
+concurrency, the relative overhead of the \sketchname data structure becomes
+more visible. This suggests future optimizations should focus on reducing CPU
+overheads, particularly for high-performance storage environments.
 
-Second, we observe that \psketchname consistently outperforms \fsketchname
+Second, \psketchname consistently outperforms \fsketchname
 across all storage types and workloads. The additional overhead of evicting keys
 to the sketch in \fsketchname creates a performance gap that becomes more
 pronounced as storage becomes faster. Moreover, \psketchname also outperforms
@@ -1640,7 +1652,7 @@ accesses. In practice, these cases are limited, and \psketchname offers superior
 performance while still eliminating the need to access timestamps from
 persistent storage.
 
-Third, our results highlight the importance of transaction characteristics in
+Third, these results highlight the importance of transaction characteristics in
 determining \sketchname's effectiveness. Short transactions with quick
 operations benefit more from \sketchname, especially on slow storage. For long
 transactions, the impact is smaller because the transaction execution time
@@ -1667,8 +1679,8 @@ close part of the gap to the Memory configuration.
 
 \subsection{Deployment Guidelines}
 
-Based on our comprehensive evaluation, we offer the following deployment
-guidelines for \sketchname:
+Based on this comprehensive evaluation, the following deployment
+guidelines for \sketchname are offered:
 
 \textbf{Variant selection:} \psketchname should be preferred over \fsketchname in
 virtually all scenarios, as it consistently outperforms \fsketchname across all
@@ -1678,13 +1690,13 @@ low contention, where \fsketchname's ability to evict keys might provide margina
 memory savings.
 
 \textbf{Storage-specific recommendations:} On slow storage (SATA SSD and HDD),
-\sketchname provides dramatic improvements and should be adopted whenever
-timestamp-based CC methods are used. The benefits are most pronounced for
-high-contention workloads. On fast storage (CXL-based SSDs or similar future
-innovations), \sketchname remains beneficial, particularly for high-contention
-scenarios where timestamp-based methods significantly outperform 2PL and KR-OCC.
-However, the overhead becomes more visible, suggesting future optimization
-opportunities.
+\sketchname provides dramatic improvements against traditional concurrency
+control methods and should be adopted whenever timestamp-based CC methods are
+used. The benefits are most pronounced for high-contention workloads. On fast
+storage (CXL-based SSDs or similar future innovations), \sketchname remains
+beneficial, particularly for high-contention scenarios where timestamp-based
+methods significantly outperform 2PL and KR-OCC. However, the overhead becomes
+more visible, suggesting future optimization opportunities.
 
 \textbf{Workload considerations:} \sketchname is highly beneficial for the vast
 majority of practical workloads. Small transactions with high contention see the
@@ -1692,10 +1704,11 @@ biggest wins; Long transactions also benefit, though proportionally less because
 transaction execution time dominates. Mixed workloads benefit substantially from
 \sketchname across all storage types.
 
-\textbf{Memory requirements:} \sketchname requires minimal memory (32KiB in our
+\textbf{Memory requirements:} \sketchname requires minimal memory (32KiB in the
 experiments with an 80GB database), making it practical for deployment even in
-memory-constrained environments. This footprint remains consistent across storage
-types, as the sketch size is workload-dependent rather than storage-dependent.
+memory-constrained environments. The memory footprint remains consistent across
+storage types, as the sketch size is workload-dependent rather than
+storage-dependent.
 
 \textbf{Concurrency control pairing:} TicToc with \psketchname consistently
 provides the best performance across all evaluated scenarios, making it the

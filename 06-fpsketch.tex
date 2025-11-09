@@ -1,30 +1,30 @@
 This chapter introduces the concept of \emph{approximate timestamp storage} for
 enabling efficient timestamp-based concurrency control (CC) mechanisms in modern
 on-disk key-value stores. Exact timestamp storage systems are costly to maintain
-at large scale, especially when data does not fit entirely in main memory. We
-detail the key properties that an approximate timestamp storage system must
-possess to preserve correctness—specifically serializability—for three common CC
-protocols: STO~\cite{bernstein1987concurrency}, MVTO~\cite{reed1983mvto}, and
-TicToc~\cite{yu2016tictoc}. We further describe the design and implementation of
-\sketchname, a novel approximate timestamp storage approach. Through careful
-analysis, we demonstrate that the overapproximation guarantees provided by
-\sketchname are sufficient for correctness, while significantly improving
-efficiency and scalability. Our approach unlocks new possibilities for
-optimizing disk-based storage systems without sacrificing correctness guarantees
-required by transactional workloads.
+at large scale, especially when data does not fit entirely in main memory. This
+chapter details the key properties that an approximate timestamp storage system
+must possess to preserve correctness—specifically serializability—for three
+common CC protocols: STO~\cite{bernstein1987concurrency},
+MVTO~\cite{reed1983mvto}, and TicToc~\cite{yu2016tictoc}. It further describes
+the design and implementation of \sketchname, a novel approximate timestamp
+storage approach. Through careful analysis, it demonstrates that the
+overapproximation guarantees provided by \sketchname are sufficient for
+correctness, while significantly improving efficiency and scalability. This
+approach unlocks new possibilities for optimizing disk-based storage systems
+without sacrificing correctness guarantees required by transactional workloads.
 
 
 
 \section{Approximate Timestamp Storage}
 \label{sec:requirements}
 
-While timestamp-based CC mechanisms assume the guarantees of a \emph{map} for
-storing their read and write timestamps, where a \emph{get} returns the latest
-\emph{put}, here we show that for STO, MVTO, and TicToc such strong guarantees
-are not necessary to ensure serializability. Specifically, we show that an
-\emph{approximate timestamp storage} system with the following two properties
-allows all three CC mechanisms to function correctly without any algorithmic
-changes.
+Timestamp-based CC mechanisms typically assume a \emph{map} abstraction for
+storing read and write timestamps, where each \emph{get} returns the value from
+the most recent \emph{put}. For STO, MVTO, and TicToc, such strong consistency
+guarantees are not required to ensure serializability. Instead, an
+\emph{approximate timestamp storage} system satisfying the following two
+properties is sufficient to enable all three CC mechanisms to function correctly
+without any algorithmic modifications.
 
 \begin{property}
     The approximate timestamp storage system can return an
@@ -49,14 +49,14 @@ begins (see \Cref{alg:sto} for reference).  STO aborts a transaction if $\tau <
 t_k$, where $t_k$ is the timestamp of a key $k$ that is being accessed.
 Intuitively, since the comparison is always checking that $\tau$ is
 \emph{smaller} than one of the key's timestamps, overapproximating key
-timestamps can only cause transactions to abort. We make this more formal with a
-simulation argument.  Suppose STO with approximate timestamp storage processes
+timestamps can only cause transactions to abort. A simulation argument fomalizes
+this intuition.  Suppose STO with approximate timestamp storage processes
 transactions $T_1, \ldots, T_n$.  Consider STO with exact timestamp storage
 processing the same set of transactions with the same ordering of their
 operations.  Suppose that STO with exact timestamps has the additional property
 that it aborts any transaction that STO with approximate timestamp storage
-aborts.  This version of STO still guarantees serializability.  So, if we can
-show that it would commit all the transactions that approximate STO would
+aborts. This version of STO still guarantees serializability. If it can be
+shown that it would commit all the transactions that approximate STO would
 commit, then this would mean that approximate STO is also serializable.  STO
 only ever does \emph{put($k, \tau$)}, i.e. the only timestamps that it stores in
 the timestamp storage engine are the timestamps assigned to transactions.  Thus
@@ -75,8 +75,8 @@ For TicToc, a simulation argument does not appear to be feasible, but the
 original TicToc proof~\citep{yu2016tictoc} continues to work, even for
 approximate timestamp storage.  This is because the proof reasons almost
 entirely about timestamp inequalities across physical time, and approximate
-timestamp storage will preserve those inequalities. We only need the following
-lemma for approximate timestamp storage in order to make the original TicToc
+timestamp storage will preserve those inequalities. Only the following lemma is
+needed for approximate timestamp storage in order to make the original TicToc
 proof go through:
 \begin{lemma}
     Each timestamp increases monotonically in physical time in TicToc
@@ -84,19 +84,19 @@ proof go through:
     causes $k$'s write timestamp to increase.
 \end{lemma}
 \begin{proof}
-    We establish the second fact first.  Consider a committing transaction that
-    writes to $k$.  TicToc guarantees that, when the transaction performs
-    \emph{put}$(k.wts, \tau)$ during its commit phase, $\tau$ is larger than the
-    read timestamp returned by a previous \emph{get}$(k.rts)$ performed by the
-    same transaction.  By \Cref{property_two}, $k.wts \leq k.rts$ at the time of
-    the \emph{get} and, since the transaction references $k$ for the entire
-    duration between the \emph{get} and \emph{put}, the approximate timestamp
-    storage cannot spontaneously increase $k.wts$ during that interval.
-    Furthermore, the transaction holds a lock on $k$ the entire time between the
-    \emph{get} and the \emph{put}, so no other transaction could have performed
-    a \emph{put} on $k.wts$.  Hence $k.wts$ cannot change between the
-    transaction's \emph{get} and its \emph{put}, ensuring that the \emph{put}
-    increases $k.wts$.
+    This proof establishes the second fact first.  Consider a committing
+    transaction that writes to $k$.  TicToc guarantees that, when the
+    transaction performs \emph{put}$(k.wts, \tau)$ during its commit phase,
+    $\tau$ is larger than the read timestamp returned by a previous
+    \emph{get}$(k.rts)$ performed by the same transaction.  By
+    \Cref{property_two}, $k.wts \leq k.rts$ at the time of the \emph{get} and,
+    since the transaction references $k$ for the entire duration between the
+    \emph{get} and \emph{put}, the approximate timestamp storage cannot
+    spontaneously increase $k.wts$ during that interval. Furthermore, the
+    transaction holds a lock on $k$ the entire time between the \emph{get} and
+    the \emph{put}, so no other transaction could have performed a \emph{put} on
+    $k.wts$.  Hence $k.wts$ cannot change between the transaction's \emph{get}
+    and its \emph{put}, ensuring that the \emph{put} increases $k.wts$.
 
     The above argument also shows that, when a transaction performs
     \emph{put}$(k.rts,\tau)$ in its commit phase, it does not decrease $k.rts$.
@@ -115,8 +115,8 @@ proof go through:
 The two facts established in the above lemma are sufficient to enable TicToc's
 original proof of serializability to go through.
 
-In the next section, we design an approximate timestamp storage data structure
-that meets the above requirements.
+The next section presents the design of an approximate timestamp storage data
+structure that meets the above requirements.
 
 
 
@@ -131,12 +131,12 @@ that meets the above requirements.
     \label{fig:FPSketch}
 \end{wrapfigure}
 
-In this section, we describe \sketchname, an approximate timestamp storage
-structure that meets the requirements identified in \Cref{sec:requirements}.
+This section describes \sketchname, an approximate timestamp storage structure
+that meets the requirements identified in \Cref{sec:requirements}.
 
 As shown in \Cref{fig:FPSketch}, \sketchname consists of two regions: a
 ``foveated'' region providing accurate timestamps and a lossy ``peripheral''
-region that maintains overapproximated timestamps. \Sketchname is a hybrid data
+region that maintains overapproximated timestamps. \sketchname is a hybrid data
 structure comprising both a hash table for the foveated region and a sketch for
 the peripheral region. Additionally, the \sketchname uses an \emph{eviction
 mechanism} to move timestamps from the foveated region to the peripheral one.
@@ -200,8 +200,8 @@ pressure using, e.g. LRU.
     \label{alg:timestamps-func}
 \end{algorithm}
 
-\paragraph{Sketch:} Timestamps evicted from the hash table are not discarded;
-instead, they are stored in the sketch. \Cref{alg:sketch-funcs} provides
+\paragraph{Sketch:} The system does not discard timestamps evicted from the hash
+table; instead, it stores them in the sketch. \Cref{alg:sketch-funcs} provides
 pseudocode for the \textsc{Put} and \textsc{Get} functions of the sketch,
 utilizing atomic operations. The core logic is analogous to the count-min
 sketch, except it takes $\max$ instead of incrementing during \textsc{Put}
@@ -209,7 +209,7 @@ operations, which guarantees \Cref{property_one}. For STO, MVTO, and TicToc,
 timestamps are ordered pairs $(wts, rts)$ of write and read timestamps,
 respectively.  The sketch takes field-wise $\max$ and $\min$, as shown in
 \Cref{alg:timestamps-func}. Note that field-wise $\max$ and $\min$ preserve that
-$wts\leq rts$, so our sketch preserves \Cref{property_two}.
+$wts\leq rts$, so the sketch preserves \Cref{property_two}.
 
 When considering the memory limitations for both the hash table and the sketch
 within the \sketchname framework, it's important to note that the hash table's
@@ -280,15 +280,15 @@ rows aligning with the number of hash functions employed.
 \textsc{Get}, \text{Put}, \textsc{IncRef}, and \textsc{DecRef}. \textsc{IncRef}
 and \textsc{DecRef} increment and decrement the refcounts on keys in the
 \sketchname, and may need to transfer timestamps between the hashtable and the
-sketch. Transactions are required to call $\textsc{IncRef}(k)$ before their
-first access to a key $k$, through a \textsc{Get} or \textsc{Put} operation, and
-should not access the key after calling $\textsc{DecRef}(k)$. Although we omit
-locking from the pseudocode, all operations ensure linearizability for each item
-in the hash table through the use of per-bucket locks.
+sketch. Transactions must call $\textsc{IncRef}(k)$ before their first access to
+a key $k$, through a \textsc{Get} or \textsc{Put} operation, and should not
+access the key after calling $\textsc{DecRef}(k)$. Although the pseudocode omits
+locking, all operations ensure linearizability for each item in the hash table
+through per-bucket locks.
 
 \textbf{\textsc{IncRef}}  allocates a hashtable slot for $k$ if one does not
 already exist, initializes its timestamp from the sketch, and sets its refcount
-to 1.  Otherwise it just increments the refcount of the existing entry.
+to 1.  Otherwise it increments the refcount of the existing entry.
 \textsc{IncRef} executes atomically via a lock on the hashtable bucket.
 
 \textbf{\textsc{DecRef}} looks up the key in the hashtable, which is
@@ -300,8 +300,8 @@ mechanism may only evict keys for which refcount is 0, and it implements an
 eviction policy, \textsc{toEvictPolicy}, which selects which of these keys to
 evict.
 
-\textbf{\textsc{Get} and \textsc{Put}} just return or update the timestamps
-in the hashtable entry, which is guaranteed to exist due to the prior call to
+\textbf{\textsc{Get} and \textsc{Put}} return or update the timestamps in the
+hashtable entry, which is guaranteed to exist due to the prior call to
 \textsc{IncRef}.
 
 
@@ -313,14 +313,14 @@ in the hashtable entry, which is guaranteed to exist due to the prior call to
 exposes the trade-off between timestamp accuracy and space. Increasing the size
 of either of these regions also increases the overall accuracy of the
 timestamps, but the space consumption for the accuracy boost varies across the
-two regions. In this chapter we explore two \sketchname variants: \Fsketchname,
-which favors a large foveated region, and \Psketchname which, in contrast,
-favors a large peripheral region. More precisely, given a fixed size space, $S$,
-that can be used to store the timestamps of the keys that are not in-use,
-\Fsketchname allocates most of $S$ for the foveated region, while \Psketchname
-allocates most of $S$ for the peripheral region, as we detail further. For
-\Psketchname, we provide intution on how to size the sketch (in terms of the
-number of rows and columns) in the next section.
+two regions. \sketchname has two variants: \Fsketchname, which favors a large
+foveated region, and \Psketchname which, in contrast, favors a large peripheral
+region. More precisely, given a fixed size space, $S$, that can be used to store
+the timestamps of the keys that are not in-use, \Fsketchname allocates most of
+$S$ for the foveated region, while \Psketchname allocates most of $S$ for the
+peripheral region, as detailed further below. For \Psketchname, intuition is
+provided on how to size the sketch (in terms of the number of rows and columns)
+in the next section.
 
 \textbf{\Fsketchname} is a variant of \sketchname that uses the smallest
 possible sketch, a sketch of size one, and allocates all the remaining available
@@ -336,24 +336,24 @@ sketch.
 
 \subsection{Sizing \sketchname}
 
-In this section, we give a simple heuristic argument that the size of the sketch
+This section presents a simple heuristic argument that the size of the sketch
 should be proportional to $\Theta(CK)$ columns and $\Theta(\log CK)$ rows, where
 $C$ is the average number of concurrent transactions and $K$ is the average
 number of keys accessed by each transaction. Thus the total size of the sketch
 need be at most $O(CK \log CK)$.
 
-We argue that, if the sketch is large enough, then, during the entirety of some
-transaction $T$'s execution, the sketch will not spontaneously increase the
-timestamps of any of the keys accessed by $T$.  Let $A_T$ be the set of keys
-accessed by \textit{any} transaction during $T$'s execution. Note that the
-average size of $A_T$ is around $CK$.  If the sketch has $CK$ columns then,
-within each row, a constant fraction of the keys will not collide with any other
-key in $A_T$.  Since there are $\Theta(\log CK)$ rows, with high probability
-every key is collision-free in at least one row. Thus the sketch will not make
-any new approximation errors on any of the keys in $A_T$ during $T$'s execution.
+If the sketch is large enough, then, during the entirety of some transaction
+$T$'s execution, the sketch will not spontaneously increase the timestamps of
+any of the keys accessed by $T$.  Let $A_T$ be the set of keys accessed by
+\textit{any} transaction during $T$'s execution. Note that the average size of
+$A_T$ is around $CK$.  If the sketch has $CK$ columns then, within each row, a
+constant fraction of the keys will not collide with any other key in $A_T$.
+Since there are $\Theta(\log CK)$ rows, with high probability every key is
+collision-free in at least one row. Thus the sketch will not make any new
+approximation errors on any of the keys in $A_T$ during $T$'s execution.
 
 So, most of the time, the system will behave as if it is using exact timestamp
-storage during a transaction $T$'s execution.  We just have to argue that
+storage during a transaction $T$'s execution. It remains to argue that
 approximation errors made before $T$ begins won't affect whether $T$ aborts.
 This is straightforward from examining each CC mechanism.  For example, STO
 compares timestamps of keys only with $T$'s timestamp, $\tau$.  All keys have
@@ -378,25 +378,26 @@ key-access patterns, which may allow much smaller sketches.
 
 As for the hashtable, recall that the hashtable needs to hold only active keys,
 and so it should be sized to hold roughly $\Theta(CK)$ keys, as well.  In
-practice, we would advise using a resizable hashtable and simply letting it grow
-as needed. Several state-of-the-art hashtables support concurrent operations
-while resizing~\cite{iceberg, dash, dlht}, so this need not cause any hiccups in
+practice, a resizable hashtable is recommended, allowing it to grow as needed.
+Several state-of-the-art hashtables support concurrent operations while
+resizing~\cite{iceberg, dash, dlht}, so this need not cause any hiccups in
 throughput.
 
 \subsection{\sketchname Implementation}
 
-We implement the hash table of \sketchname on top of IcebergHT~\cite{iceberg}
-and the sketch from scratch. We modified IcebergHT to perform reference-count
-management and to support holding bucket locks across multiple operations. For
-the \Fsketchname variant that uses a sketch of size one, we use an optimized
-version \Cref{alg:sketch-funcs} which no longer needs to compute hashes.
+The implementation builds the hash table of \sketchname on top of
+IcebergHT~\cite{iceberg} and constructs the sketch from scratch. The
+implementation modifies IcebergHT to perform reference-count management and to
+support holding bucket locks across multiple operations. For the \Fsketchname
+variant that uses a sketch of size one, the implementation uses an optimized
+version of \Cref{alg:sketch-funcs} that no longer needs to compute hashes.
 
 
 \section{Integration with the Existing CC Algorithms}
 \label{sec:integration}
 
-In this section, we describe how to integrate \sketchname into STO, MVTO, and
-TicToc. STO and MVTO differ substantially from TicToc in that TicToc verifies
+This section describes how to integrate \sketchname into STO, MVTO, and TicToc.
+STO and MVTO differ substantially from TicToc in that TicToc verifies
 transactions post-execution in an optimistic manner, whereas STO and MVTO can
 abort transactions mid-execution. All three maintain read and write timestamps
 per key (per version in MVTO's case).
@@ -423,7 +424,7 @@ per key (per version in MVTO's case).
         \State $S$.\textsc{IncRef}($k$)
         \EndFor
         \Assign{$T$.\commitTime}{0}
-        \Comment{Compute our commit timestamp $T$.\commitTime}
+        \Comment{Compute the commit timestamp $T$.\commitTime}
         \For{$k \in  T.W \cup T.R$}
         \If{$k \in T.W$}
         \Assign{$T$.\commitTime}{$\max(T.\commitTime, 1 + S.\textsc{Get}(k).rts)$}
@@ -465,13 +466,13 @@ per key (per version in MVTO's case).
 \end{algorithm}
 
 \Cref{alg:tictoc} shows the pseudocode for TicToc with \sketchname. There are
-only two changes to the algorithm. First, timestamps are stored in the
+only two changes to the algorithm. First, the system stores timestamps in the
 \sketchname instead of inline with the tuples, as in the original TicToc paper,
-so the syntax for accessing timestamps is different.  Second, we need to call
-\textsc{IncRef} and \textsc{DecRef} when a transaction first accesses a key and
-when it finishes.  Note that all the logic for dealing with timestamp
-approximation is encapsulated within the \sketchname code---TicToc is not aware
-of the approximations.
+so the syntax for accessing timestamps differs.  Second, \textsc{IncRef} and
+\textsc{DecRef} must be called when a transaction first accesses a key and when
+it finishes.  Note that the \sketchname code encapsulates all the logic for
+dealing with timestamp approximation---TicToc is not aware of the
+approximations.
 
 Transactions increment a key's refcount the first time they access it, and
 decrement it only during commit (or as part of the abort procedure, which is not
@@ -481,19 +482,19 @@ transaction's execution. It then records the timestamps in the transaction's
 read set, which is structured as a map from keys to timestamps.
 
 The write set is a map from keys to data items.  When a transaction writes to a
-key, we just record the specified key-value pair in the transaction's write set.
+key, the specified key-value pair is recorded in the transaction's write set.
 Note that a transaction doesn't need to check the timestamps of a key in its
 write set until validation time, as in the original TicToc. Although not shown
 explicitly, the full implementation checks the transaction's write set during
 reads so that a transaction sees its own writes.
 
 TicToc requires a mechanism to lock keys during transaction validation.
-Although this is abstracted in our pseudocode, in our implementation this is
+Although this is abstracted in the pseudocode, in the implementation this is
 accomplished by having a lock bit in a key's entry in the timestamp hash table.
 
 When a transaction either commits or aborts, it is essential to unlock the write
 set and decrease the reference counts of the accessed keys. It's worth noting
-that we omit the code for finalizing transactions upon abort due to space
+that the code for finalizing transactions upon abort is omitted due to space
 constraints. However, the steps involved in unlocking and removing entries for
 transaction aborts are the same as those outlined in \Cref{alg:tictoc:unlock}
 and \Cref{alg:tictoc:remove}.
@@ -563,25 +564,25 @@ STO assigns each transaction a commit timestamp when it begins. Whenever a
 transaction reads or writes an entry in the database, STO locks that key, checks
 that the key's timestamps are compatible with the commit timestamp of the
 transaction, and then updates the key's timestamps. STO does not allow
-transactions to access uncommitted data. This can be achieved with read-write
-locks, as illustrated in \Cref{alg:sto}. We implemented these locks with ``dirty
-bits''\cite{wolf2015sto}. With dirty bits, readers do not block writers,
-enabling more concurrency than in 2PL. Dirty bits work as follows. When a writer
-updates a tuple, it sets the tuple's dirty bit to 1. This blocks subsequent
-readers and writers until the writing transaction commits or aborts.  Readers,
-however, use the dirty bit only as a latch to atomically read the tuple into a
-private buffer, and hence do not block subsequent writers (or, obviously,
-subsequent readers).
+transactions to access uncommitted data. Read-write locks achieve this, as
+illustrated in \Cref{alg:sto}. The implementation uses ``dirty
+bits''\cite{wolf2015sto} for these locks. With dirty bits, readers do not block
+writers, enabling more concurrency than in 2PL. Dirty bits work as follows. When
+a writer updates a tuple, it sets the tuple's dirty bit to 1. This blocks
+subsequent readers and writers until the writing transaction commits or aborts.
+Readers, however, use the dirty bit only as a latch to atomically read the tuple
+into a private buffer, and hence do not block subsequent writers (or subsequent
+readers).
 
-As in our TicToc implementation, we store the reader-writer locks in the entries
-in the \sketchname. Although not shown explicitly, if a transaction writes a key
-after reading it, it needs to be able to atomically upgrade its reader lock to a
-a writer lock.  If upgrading is not possible, the transaction aborts.
+As in the TicToc implementation, the entries in the \sketchname store the
+reader-writer locks. Although not shown explicitly, if a transaction writes a
+key after reading it, it needs to be able to atomically upgrade its reader lock
+to a writer lock.  If upgrading is not possible, the transaction aborts.
 
 Note that STO needs to update the timestamps in the sketch only the first time a
 transaction accesses a key, since the timestamp updates performed by a
-transaction using STO are idempotent.  During a read, we need to read and write
-the timestamps in the sketch atomically, since other readers may also be
+transaction using STO are idempotent.  During a read, the timestamps in the
+sketch must be read and written atomically, since other readers may also be
 updating the key's read timestamp. This isn't necessary for writes, since the
 transaction already holds an exclusive lock on the key.
 
@@ -600,64 +601,65 @@ timestamps make it visible to that transaction and uses that version.  If the
 transaction cannot find a compatible version (e.g. if the old versions have
 already been garbage collected) then it must abort.
 
-As we noted in \Cref{sec:requirements}, MVTO requires that the approximate
+As noted in \Cref{sec:requirements}, MVTO requires that the approximate
 timestamp storage system must maintain the relative timestamp ordering of the
-versions of a key-value-pair.  We satisfy this requirement by ensuring that our
-system approximates the timestamps of only the most recent version of any
+versions of a key-value pair.  This requirement is satisfied by ensuring that
+the system approximates the timestamps of only the most recent version of any
 key-value pair.
 
-Specifically, our MVTO implementation works as follows.  When a key is inactive,
-we store the (approximate) timestamps of the most recent version of that key in
-\sketchname.  When the key becomes active, we copy the timestamps of the most
-recent version from \sketchname into the hashtable.  Whenever a new version of
-the key is created, we store the timestamps of the new version in the hashtable,
-as well.  Once the key becomes inactive, we move the timestamps of the most
-recent version back to \sketchname and discard the timestamps of all the older
-versions.
+Specifically, the MVTO implementation works as follows.  When a key is inactive,
+the system stores the (approximate) timestamps of the most recent version of
+that key in \sketchname.  When the key becomes active, the system copies the
+timestamps of the most recent version from \sketchname into the hashtable.
+Whenever a new version of the key is created, the system stores the timestamps
+of the new version in the hashtable, as well.  Once the key becomes inactive,
+the system moves the timestamps of the most recent version back to \sketchname
+and discards the timestamps of all the older versions.
 
-Whenever a new version is created, it is assigned a monotonically increasing
-version number and stored in SplinterDB indexed as (key, version-number)
-$\rightarrow$ value.  Each entry in the hashtable also contains the version
-number so, once a transaction finds an entry with compatible timestamps in the
-hashtable, it learns the version number that it needs in order to look up that
-version of the key-value pair in SplinterDB using a point lookup.
+Whenever a new version is created, the system assigns it a monotonically
+increasing version number and stores it in SplinterDB indexed as (key,
+version-number) $\rightarrow$ value.  Each entry in the hashtable also contains
+the version number so, once a transaction finds an entry with compatible
+timestamps in the hashtable, it learns the version number that it needs in order
+to look up that version of the key-value pair in SplinterDB using a point
+lookup.
 
 When a transaction accesses an inactive key, however, the sketch can tell the
 transaction only the timestamps of the most recent version, but not its version
 number.  Thus the transaction does not know what version number to use to look
-up the key in SplinterDB.  We considered two solutions to this problem.  The
-first was to have the transaction perform a predecessor query in SplinterDB,
+up the key in SplinterDB.  Two solutions to this problem can be considered.  The
+first is to have the transaction perform a predecessor query in SplinterDB,
 i.e. to query for the predecessor of (key, $\infty$).  However, predecessor
 queries in SplinterDB are slower than point queries because predecessor queries
 cannot use SplinterDB's maplets~\cite{ConwayFaJo23}.
 
-To avoid predecessor queries, we implemented the following optimization.
-Whenever a new version of a key-value pair is inserted into SplinterDB, we also
-insert the same key-value pair into SplinterDB with the special version number
-0, i.e. we maintain the invariant that the most recent version of a key is
-always stored as (key, 0).  This incurs two insertions into SplinterDB for each
-version, but enables queries of inactive keys to perform point queries instead
-of range queries.  Overall, we found this approach offered higher performance,
-so this is the scheme we use in all our benchmarks.
+To avoid predecessor queries, the following optimization is viable. Whenever a
+new version of a key-value pair is inserted into SplinterDB, the same key-value
+pair is also inserted into SplinterDB with the special version number 0, i.e.
+the invariant that the most recent version of a key is always stored as (key,
+0).  This incurs two insertions into SplinterDB for each version, but enables
+queries of inactive keys to perform point queries instead of range queries.
+Overall, this approach offers higher performance, so this is the scheme used in
+all the benchmarks.
 
 
 \paragraph{Persistence and crash safety:} It is possible to handle crashes using
-standard techniques like write-ahead logging and checkpoints. Note that we do
-not need to persist the timestamps across crashes or shutdowns since there can
-be no serializability violations between transactions that execute before and
-after a crash or shutdown.
+standard techniques like write-ahead logging and checkpoints. Note that
+timestamps do not need to be persisted across crashes or shutdowns since there
+can be no serializability violations between transactions that execute before
+and after a crash or shutdown.
 
 
 
 \section{Evaluation}\label{sec:eval}
 
-We evaluate the effectiveness of \sketchname in scaling timestamp-based CC
-mechanisms to on-disk databases. There are five high-level take-aways from our
-experiments:
+This section evaluates the effectiveness of \sketchname in scaling
+timestamp-based CC mechanisms to on-disk databases. There are five high-level
+take-aways from the experiments:
 \setlist{nolistsep}
 \begin{itemize}
     \item \sketchname-based versions of STO, MVTO, and TicToc outperform
-          versions that keep timestamps on disk in all our experiments, often by
+          versions that keep timestamps on disk in all the experiments, often by
           dramatic margins.  For example, \sketchname improves TicToc goodput by
           up to 5.9$\times$, STO by up to 1.8$\times$, and MVTO by over
           160$\times$.
@@ -666,11 +668,11 @@ experiments:
           \psketchname are never substantially slower than the \fsketchname
           variants.
     \item The goodputs of TicToc and STO with \sketchname are close to an
-          idealized algorithm, which assumes we can fit all timestamp metadata
-          in RAM, across diverse workloads.
+          idealized algorithm, which assumes all timestamp metadata can fit in
+          RAM, across diverse workloads.
     \item TicToc-\psketchname in particular outperforms 2PL and OCC across the
           board.
-    \item \sketchname requires a tiny amount of memory -- 32KiB in our
+    \item \sketchname requires a tiny amount of memory -- 32KiB in the
           experiments with an 80GB database.
 \end{itemize}
 In summary, \sketchname offers essentially strictly improved performance with
@@ -681,51 +683,51 @@ benchmarks.
 \subsection{Experimental Setup}
 \label{sec:eval-setup}
 
-We run our experiments on a CloudLab~\cite{duplyakin2019cloudlab} Clemson r6525
+The experiments run on a CloudLab~\cite{duplyakin2019cloudlab} Clemson r6525
 machine with two 32-core AMD 7543 at 2.8GHz, 256GB memory, and one 1.6TB PCIe
 v4.0 NVMe SSD.
 
-We use SplinterDB, a fast, scalable write-optimized key-value store, as the
-underlying storage system for the concurrency control mechanisms we consider in
-this evaluation. We configure SplinterDB to use the raw device I/O (with the
-DIRECT\_IO flag) to avoid the filesystem overhead. We size SplinterDB's internal
-cache to a percentage of each workload's database size, as we detail below.
+SplinterDB, a fast, scalable write-optimized key-value store, is the
+underlying storage system for the concurrency control mechanisms considered in
+this evaluation. SplinterDB is configured to use raw device I/O (with the
+DIRECT\_IO flag) to avoid the filesystem overhead. SplinterDB's internal
+cache is sized to a percentage of each workload's database size, as detailed below.
 
-In all our experiments, we utilize 120 threads, which is the maximum supported
-by the version of SplinterDB used in this work. Each thread executes
-transactions in a closed loop. When a transaction aborts, it can be retried up
-to 5 times. The retry mechanism uses exponential backoff. We tuned the initial
-backoff interval for each scheme by initially setting it to be roughly twice the
-average uncontended transaction completion time, and then tuned it until the
-abort rate roughly matched that of the Memory variant.
+All the experiments run with 120 threads, which is the maximum supported by the
+version of SplinterDB used. Each thread executes transactions in a closed loop.
+When a transaction aborts, it can be retried up to 5 times. The retry mechanism
+uses exponential backoff. The initial backoff interval for each scheme is tuned
+by initially setting it to be roughly twice the average uncontended transaction
+completion time, and then tuning it until the abort rate roughly matches that of
+the Memory variant.
 
-We measure Goodput in Kilo Transactions Per Second (KTPS) and also evaluate the
-abort rate. Goodput represents the number of successfully committed transactions
-per second. The abort rate is calculated as the ratio of the total number of
-aborts, which can be up to 6 per transaction (including the initial attempt and
-5 retries), to the total number of attempted transactions, which is the sum of
-all aborts and commits.
+The evaluation measures goodput in Kilo Transactions Per Second (KTPS) and also
+evaluates the abort rate. Goodput represents the number of successfully
+committed transactions per second. The evaluation calculates the abort rate as
+the ratio of the total number of aborts, which can be up to 6 per transaction
+(including the initial attempt and 5 retries), to the total number of attempted
+transactions, which is the sum of all aborts and commits.
 
 
 \subsubsection{Concurrency-Control Mechanisms}
 
-We implement and evaluate several CC mechanisms, including all three
+The evaluation implements and tests several CC mechanisms, including all three
 timestamp-based CCs described in~\Cref{sec:background:timestamp-based-cc} (STO,
 MVTO, and TicToc), and two classic CCs which are widely used in disk-based
 databases: Two-Phase Locking (2PL) and Kung-Robinson Optimistic Concurrency
 Control (OCC). Unlike timestamp-based CCs, these two classic mechanisms do not
 require maintaining per-record metadata, thus avoiding disk I/O overhead for
-metadata access. For 2PL, we employ a no-wait policy after evaluating multiple
-deadlock prevention mechanisms (including wound-wait and wound-die). We selected
-no-wait due to its generally good performance in our experiments, which aligns
-with findings from previous
+metadata access. After evaluating multiple deadlock prevention mechanisms
+(including wound-wait and wound-die), 2PL employs a no-wait policy because of
+its generally good performance, which aligns with findings from previous
 works~\cite{DBLP:conf/sigmod/RenFA16,DBLP:conf/usenix/TangE18}.
 
-We implement five variants of STO, MVTO, and TicToc. These variants are
-distinguished by their methods for storing and accessing per-record timestamps,
-which range from relying entirely on disk to using fully in-memory solutions.
+The evaluation implements five variants of STO, MVTO, and TicToc. These variants
+are distinguished by their methods for storing and accessing per-record
+timestamps, which range from relying entirely on disk to using fully in-memory
+solutions.
 
-First, we establish the performance boundaries with two baseline variants:
+First, two baseline variants establish the performance boundaries:
 \begin{itemize}
     \item \emph{Disk}: This is the simplest approach. Timestamps are stored on
           disk as part of each record, requiring an I/O operation for every
@@ -747,8 +749,8 @@ timestamps for the much larger set of inactive keys:
           same active-key hash table as the sketch variants. For inactive keys,
           it employs a 32 KiB in-memory cache with a CLOCK eviction policy to
           buffer timestamps read from disk. This cache operates alongside
-          SplinterDB's standard page caching. We also explore the impact of
-          larger caches in \Cref{sec:ycsb}.
+          SplinterDB's standard page caching. The impact of larger caches is
+          also explored in \Cref{sec:ycsb}.
 
     \item \emph{\fsketchname}: As one variant of \sketchname, described in
           \Cref{sec:design:variants}, it supplements the active-key hash table
@@ -881,44 +883,43 @@ timestamps for the much larger set of inactive keys:
 
 \subsubsection{Workloads} 
 
-We use two benchmarks to evaluate the performance of the
-CCs we implement: (1) YCSB~\cite{ycsb}, which models large-scale online
-services, and (2) TPC-C~\cite{tpcc}, the industry standard for evaluating OLTP
-systems.
+The evaluation uses two benchmarks to test the performance of the implemented
+CCs: (1) YCSB~\cite{ycsb}, which models large-scale online services, and (2)
+TPC-C~\cite{tpcc}, the industry standard for evaluating OLTP systems.
 
 
-In the YCSB workloads, we first load a dataset of 673 million key-value pairs,
-with 24-byte keys and 100-byte values. This loading phase is performed before
-every run, followed by the execution phase. To evaluate \sketchname's across
-diverse scenarios, we execute seven YCSB workloads: four ``small'' transaction
-workloads, two ``mixed'' transaction workloads, and one ``large'' transaction
-workload.  Each of the small workloads is either \emph{read-intensive} or
-\emph{write-intensive}. In write-intensive workloads, transactions perform 8
-reads and 8 writes. In read-intensive workloads, transactions perform 15 reads
-and 1 write. The keys used in these transactions are generated based on a
-Zipfian distribution. Each of the workloads is either \emph{high-contention} or
-\emph{medium-contention}.  For the high-contention workloads the Zipfian
-distribution uses \emph{theta}=0.99 (10\% of the pairs are accessed by ~80\% of
-the operations). For the medium-contention workloads, \emph{theta}=0.6 (10\% of
-the pairs are accessed by ~40\% of all the operations). The ``mixed''
-transaction workloads consist of a mix of small transactions (reading and
-writing 2 keys each) and medium-sized transactions, which read 28 keys each. For
-these workloads, the Zipfian \emph{theta} values of 0.9 and 0.6 are used for
-high- and medium-contention, respectively. Finally, we run a high-contention
-(Zipfian 0.9) ``large'' transaction workload, where 5\% of the transactions read
-1000 keys, and the remaining transactions each read and write 8 keys.
-SplinterDB's internal cache is 6GiB, which is less than 10\% of the database
-size. We run YCSB experiments over a duration of 240 seconds. We repeat each run
-three times and report average numbers.
+In the YCSB workloads, the evaluation first loads a dataset of 673 million
+key-value pairs, with 24-byte keys and 100-byte values. It performs this loading
+phase before every run, followed by the execution phase. To evaluate \sketchname
+across diverse scenarios, the evaluation executes seven YCSB workloads: four
+``small'' transaction workloads, two ``mixed'' transaction workloads, and one
+``large'' transaction workload.  Each of the small workloads is either
+\emph{read-intensive} or \emph{write-intensive}. In write-intensive workloads,
+transactions perform 8 reads and 8 writes. In read-intensive workloads,
+transactions perform 15 reads and 1 write. The keys used in these transactions
+are generated based on a Zipfian distribution. Each of the workloads is either
+\emph{high-contention} or \emph{medium-contention}.  For the high-contention
+workloads the Zipfian distribution uses \emph{theta}=0.99 (10\% of the pairs are
+accessed by ~80\% of the operations). For the medium-contention workloads,
+\emph{theta}=0.6 (10\% of the pairs are accessed by ~40\% of all the
+operations). The ``mixed'' transaction workloads consist of a mix of small
+transactions (reading and writing 2 keys each) and medium-sized transactions,
+which read 28 keys each. For these workloads, the Zipfian \emph{theta} values of
+0.9 and 0.6 are used for high- and medium-contention, respectively. Finally, a
+high-contention (Zipfian 0.9) ``large'' transaction workload is run, where 5\%
+of the transactions read 1000 keys, and the remaining transactions each read and
+write 8 keys. SplinterDB's internal cache is 6GiB, which is less than 10\% of
+the database size. YCSB experiments run for 240 seconds. Each run is repeated
+three times and average numbers are reported.
 
-As in many previous works, we evaluated TPC-C workloads that comprise only two
-of the five transaction types in TPC-C, namely \texttt{Payment} and
+As in many previous works, the evaluation considers TPC-C workloads comprising
+only two of the five transaction types in TPC-C, namely \texttt{Payment} and
 \texttt{NewOrder}, with each type making up 50\% of the workload.  These two
 transaction types constitute 88\% of the default TPC-C mix and are the most
-interesting for our evaluation. We ran the TPC-C workloads for various number of
+interesting for this evaluation. The TPC-C workloads run for various numbers of
 warehouses, 4, 8, 16, and 32, which dictate the initial database size and the
-contention level. SplinterDB's internal cache was configured to 256MB. The TPC-C
-experiments are run for 120 seconds and repeated three times to minimize noise
+contention level. SplinterDB's internal cache is configured to 256MB. The TPC-C
+experiments run for 120 seconds and repeated three times to minimize noise
 caused by random variation.
 
 \subsection{YCSB Results}
@@ -927,24 +928,23 @@ caused by random variation.
 
 \subsubsection{Small-Transaction Workloads}
 
-\Cref{fig:ycsb} shows the goodput and abort rates for all our timestamp-based CC
-mechanisms on our four small-transaction YCSB workloads.
+\Cref{fig:ycsb} presents the goodput and abort rates for all timestamp-based CC
+mechanisms on four small-transaction YCSB workloads.
 
-One important result from \Cref{fig:ycsb} is that in all scenarios, integrating
-\sketchname with the timestamp-based CCs enables them to substantially
-outperform their ``Disk'' and ``Disk-Cache'' counterparts. Except with MVTO,
-which we discuss below, Disk-Cache is slightly slower than Disk due to the
-overhead of managing the extra cache. We provide a deeper dive on how cache size
-affects Disk-Cache's performance in another experiment described below. The STO
-and MVTO variants match their ``Memory'' counterparts. TicToc experiences
-performance penalties from aborts because validation occurs after optimistically
-executing all operations, requiring them to be re-executed. This effect is
-particularly pronounced for read operations. Nevertheless, TicToc with
-\sketchname still achieve the best performance across our workloads. The
-\psketchname-based protocols also match or outperform their \fsketchname-based
-variants on these workloads.
+One important result from \Cref{fig:ycsb} is that integrating \sketchname with
+the timestamp-based CCs enables them to substantially outperform their ``Disk''
+and ``Disk-Cache'' counterparts. Except with MVTO, which is discussed below,
+Disk-Cache is slightly slower than Disk due to the overhead of managing the
+extra cache. A deeper dive on how cache size affects Disk-Cache's performance is
+provided in another experiment described below. The STO and MVTO variants match
+their ``Memory'' counterparts. TicToc experiences performance penalties from
+aborts because validation occurs after optimistically executing all operations,
+requiring them to be re-executed. This effect is particularly pronounced for
+read operations. Nevertheless, TicToc with \sketchname still achieve the best
+performance across the workloads. The \psketchname-based protocols also match or
+outperform their \fsketchname-based variants on these workloads.
 
-We can draw several other conclusions from these results.
+Several other conclusions can be drawn from these results:
 
 \setlist{nolistsep}
 \begin{itemize}
@@ -966,7 +966,7 @@ We can draw several other conclusions from these results.
           it needs to bring a key into cache. Range queries are slower than
           point queries because range queries do not use filters to avoid I/O in
           SplinterDB. In contrast, MVTO-Disk-Cache is able to utilize the same
-          \textit{V0} technique as our \sketchname-basedMVTO variants, which
+          \textit{V0} technique as the \sketchname-based MVTO variants, which
           enables it to use point queries instead of range queries to bring keys
           into cache.  As a result, MVTO-Disk-Cache substantially outperforms
           MVTO-Disk.
@@ -1051,8 +1051,8 @@ We can draw several other conclusions from these results.
 
 \subsubsection{Mixed-Transaction Workloads} 
 
-\Cref{fig:ycsb:mixed} shows the goodput and abort rates for our timestamp-based
-CC mechanisms on our mixed-transaction workloads. Several of the same
+\Cref{fig:ycsb:mixed} presents the goodput and abort rates for timestamp-based
+CC mechanisms on mixed-transaction workloads. Several of the same
 observations apply here, as well: TicToc variants generally perform better than
 all other variants, 2PL, and OCC; Disk variants are substantially slower; and
 MVTO-Disk suffers in particular due to its use of range queries when bringing a
@@ -1127,13 +1127,13 @@ compared to \fsketchname, resulting in fewer unnecessary aborts.
 
 \subsubsection{Long-Transaction Workload}
 
-\Cref{fig:ycsb:long} shows our final YCSB workload, which includes some long
+\Cref{fig:ycsb:long} presents the final YCSB workload, which includes some long
 transactions that read 1000 keys.  Most of the trends here are similar to the
 other YCSB  workloads.
 
 The main take-away is that STO and TicToc with approximate timestamp storage
-work just as well as their Memory variants, demonstrating that approximate
-timestamps can handle large transactions, not just small ones.
+work as well as their Memory variants, demonstrating that approximate
+timestamps can handle large transactions, not only small ones.
 
 \begin{figure}[!t]
     \centering
@@ -1182,38 +1182,38 @@ timestamps can handle large transactions, not just small ones.
 
 \Cref{fig:ycsb:spl_cache} shows how varying the SplinterDB cache size affects
 goodput of TicToc-Disk and TicToc-\psketchname.  The purpose of this experiment
-is to answer the question: can we fix the performance problems in Disk-based
-schemes by simply increasing cache sizes?
+is to answer the question: can increasing cache sizes alone fix the performance
+problems in Disk-based schemes?
 
-\Cref{fig:ycsb:spl_cache} suggest that the answer is ``No.''  In the
+\Cref{fig:ycsb:spl_cache} suggests that the answer is ``No.''  In the
 high-contention workload, TicToc-Disk with a 37 GiB cache is still slower than
 TicToc-\psketchname with a mere 6GiB cache.  And in the medium-contention
 workload, TicToc-Disk needs roughly twice as much cache to match the goodput of
-TicToc-\psketchname, which needs only 32KiBs to store timestamps.
+TicToc-\psketchname, which needs only 32KiB to store timestamps.
 
 There are likely several reasons that database cache is not as effective as
 in-memory approximate timestamp storage.  First, caches store disk blocks, which
 may store numerous key-value-timestamp records.  So, in order to store a single
 timestamp for a single key, the block cache will need to hold an entire disk
 block, whereas approximate timestamp storage will need only a few bytes.  Thus
-approximate timestamp storage just uses memory more efficiently. Second,
-timestamp storage is optimized for quick, in-memory access, whereas database
-caches can have high overheads due to locking, latching, and data structure
-traversals, among other things.
+approximate timestamp storage uses memory more efficiently. Second, timestamp
+storage is optimized for quick, in-memory access, whereas database caches can
+have high overheads due to locking, latching, and data structure traversals,
+among other things.
 
 \subsubsection{Metadata Memory Usage}
 
-We now compare the memory used to store metadata in each scheme. The Memory
-variant stored in RAM 40 bytes for each KV-pair: a 24-byte key and a 16-byte
-structure containing a read timestamp, write timestamp, and a latch.  There were
-673M keys in the database, so the Memory variant stored 27GiB of metadata.  The
-Disk variant also stored 16 bytes of metadata with each 124-byte record in the
-database.  All metadata was stored in SplinterDB's 6GiB cache, so the total
-memory used for metadata was approximately 16 / (124 + 16) $\times$ 6 GiB
-$\approx$ 685 MiB.  The Disk-Cache just adds a small 32KiB cache to the Disk
-scheme and hence has similar memory usage. The \sketchname variants use a 32KiB
-cache plus a hashtable of 40-byte entries for each active key, for a total
-average memory usage of 160KiB.
+This section compares the memory used to store metadata in each scheme. The
+Memory variant stored in RAM 40 bytes for each KV-pair: a 24-byte key and a
+16-byte structure containing a read timestamp, write timestamp, and a latch.
+There are 673M keys in the database, so the Memory variant stored 27GiB of
+metadata.  The Disk variant also stores 16 bytes of metadata with each 124-byte
+record in the database.  All metadata is stored in SplinterDB's 6GiB cache, so
+the total memory used for metadata is approximately 16 / (124 + 16) $\times$ 6
+GiB $\approx$ 685 MiB.  The Disk-Cache adds a small 32KiB cache to the Disk
+scheme and has similar memory usage. The \sketchname variants use a 32KiB cache
+plus a hashtable of 40-byte entries for each active key, for a total average
+memory usage of 160KiB.
 
 \begin{figure}[!t]
     \centering
@@ -1265,13 +1265,12 @@ average memory usage of 160KiB.
 \subsubsection{Disk-Cache Versus \psketchname}
 
 \Cref{fig:ycsb:disk_cache} compares the performance of Disk-Cache with
-\psketchname. We used the same configuration for \psketchname--32KiB cache. The
-dashed line is the goodput of \psketchname. In high-contention workloads,
-Disk-Cache requires about 220MiB of cache to achieve the same goodput as
-\psketchname, which uses only 32KiB of memory. Disk-Cache never achieves the
-same goodput as \psketchname in our medium-contention workloads because the
-Disk-Cache variant still requires I/O to access timestamps, while \psketchname
-does not.
+\psketchname. \psketchname--32KiB cache uses the same configuration. The dashed
+line is the goodput of \psketchname. In high-contention workloads, Disk-Cache
+requires about 220MiB of cache to achieve the same goodput as \psketchname,
+which uses only 32KiB of memory. Disk-Cache never achieves the same goodput as
+\psketchname in medium-contention workloads because the Disk-Cache variant still
+requires I/O to access timestamps, while \psketchname does not.
 
 
 \begin{figure*}[!t]
@@ -1391,7 +1390,7 @@ does not.
 \subsection{TPC-C Results}
 
 \Cref{fig:tpcc} shows the goodput and abort rates for TPC-C workloads for
-various number of warehouses.  The primary take-away from these experiments is
+various numbers of warehouses.  The primary take-away from these experiments is
 that the trends seen in the YCSB experiments generalize to other workloads.
 
 The main observation is that, as in the YCSB experiments, STO-\psketchname and
@@ -1623,7 +1622,7 @@ substantially worse than the \fsketchname variants.
         \end{tikzpicture}
     }
     \caption[Factor-analysis of the sketch size]{The goodput of TicToc, STO, and MVTO for high-contention YCSB
-        workloads with varying sketch sizes. We configure workloads by operations
+        workloads with varying sketch sizes. Workloads are configured by operations
         proportion (Read-intensive vs. Write-intensive), the database size (containing
         673M vs. 67.3M keys), and the concurrency level (120 vs 16 threads). The dashed
         lines represent the goodputs of the Memory variant for each configuration.}
@@ -1634,13 +1633,12 @@ substantially worse than the \fsketchname variants.
 
 \subsection{Sketch Size}
 
-
-We conduct a factor-analysis of the sketch size of \sketchname for TicToc, STO,
-and MVTO. \Cref{fig:sketch_size} presents the goodput for the high-contention
-YCSB workloads as the sketch size increases. We vary workload type
-(read-intensive vs. write-intensive), the number of worker threads varying the
-amount of data updating the sketch, and the database size determined by the
-number of keys in the database, representing the key range of workloads.
+A factor-analysis of the sketch size of \sketchname for TicToc, STO, and MVTO is
+presented. \Cref{fig:sketch_size} presents the goodput for the high-contention
+YCSB workloads as the sketch size increases. Workload type is varied
+(read-intensive vs. write-intensive), along with the number of worker threads
+varying the amount of data updating the sketch, and the database size determined
+by the number of keys in the database, representing the key range of workloads.
 
 The main takeaway from these experiments is that regardless of the setting, the
 sketch can be at most a few KiB, which is less than 1\% of the database size, to
@@ -1654,36 +1652,31 @@ memory counterparts.
 \label{sec:summary}
 
 
-In this chapter we introduced \emph{approximate timestamp storage}, a
-novel timestamp storage system that enables timestamp-based CC
-mechanisms to operate efficiently in modern on-disk key-value stores.
-Approximate timestamp storage provides guarantees we identified to be
-sufficient for preserving the correctness of the timestamp-based CC
-mechanisms we studied, while being extremely memory efficient. We
-presented the design of an approximate timestamp storage system,
-\sketchname, and implemented two of its variants, \fsketchname and
-\psketchname. We integrated \sketchname with three timestamp-based CC
-protocols--STO, MVTO, and TicToc. Our evaluation shows superior
-performance across various workloads using our \sketchname approach.
-Notably, TicToc with \psketchname achieves up to 14$\times$ better
-performance than traditional 2PL and OCC approaches, and up to
-5.9$\times$ improvement over disk-based timestamp storage. \sketchname
-unlocks the ability to adapt existing CC techniques and paves the way
-for innovative CC mechanisms in future disk-based key-value stores.
+This chapter introduces \emph{approximate timestamp storage}, a novel timestamp
+storage system that enables timestamp-based CC mechanisms to operate efficiently
+in modern on-disk key-value stores. Approximate timestamp storage provides
+guarantees that are sufficient for preserving the correctness of the
+timestamp-based CC mechanisms studied here, while being extremely memory
+efficient. This chapter presents the design of an approximate timestamp storage
+system, \sketchname, and implements two of its variants, \fsketchname and
+\psketchname. The implementation integrates \sketchname with three
+timestamp-based CC protocols--STO, MVTO, and TicToc. Through this integration,
+\sketchname unlocks the ability to adapt existing CC techniques and paves the
+way for innovative CC mechanisms in future disk-based key-value stores.
 
-We believe \sketchname is broadly applicable across a variety of
-domains, although the performance benefits may vary based on other
-overheads in the system.  For example, our approach could benefit
-distributed systems by improving local node performance. In a
-shared-nothing architecture, a per-partition \sketchname instance
-could manage timestamps for its corresponding keys, providing the
-same local memory efficiency and reduced disk I/O demonstrated in
-our work.  In distributed systems or in systems based on older data
-structures, such as B-trees, other performance bottlenecks will
-obviously reduce the impact of an optimized concurrency-control
-mechanism.  However, extensive research has focused on optimizing
-these aspects through techniques like reducing network round-trips
-and improving global timestamp synchronization. As those orthogonal
-optimizations are applied, the local performance improvements
-provided by \sketchname would become even more promising for overall
-system throughput.
+The experimental evaluation on modern NVMe SSDs demonstrates that \sketchname
+enables timestamp-based CC mechanisms to achieve performance comparable to
+idealized in-memory configurations while requiring only minimal memory overhead.
+Across diverse workloads, \psketchname variants consistently outperform
+\fsketchname variants, and both significantly exceed disk-based timestamp
+storage approaches. Notably, TicToc with \psketchname achieves up to 14$\times$
+better performance than traditional 2PL and OCC approaches, and up to
+5.9$\times$ improvement over disk-based timestamp storage. These findings
+establish \sketchname as a practical and effective solution for enabling modern
+timestamp-based concurrency control in disk-based key-value stores. While this
+evaluation focuses on NVMe SSDs, production environments span a wide spectrum of
+storage technologies. The next chapter extends this analysis by evaluating
+\sketchname across diverse storage media, from slow storage (SATA SSD and HDD)
+to fast storage (simulated CXL-based SSDs), to understand how storage
+characteristics fundamentally shape \sketchname's performance benefits and
+trade-offs.

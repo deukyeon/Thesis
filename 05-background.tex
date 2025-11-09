@@ -1,18 +1,17 @@
-
 This chapter provides the theoretical foundation and practical motivation for
-our work on approximate timestamping in on-disk database systems. We begin by
-examining the fundamental principles of concurrency control in transactional
-systems, then trace the evolution of storage technology that has reshaped
-performance bottlenecks, introduce a representative approximate data structure,
-and finally present the compelling case for why approximate timestamping
-represents a necessary innovation.
+approximate timestamping in on-disk database systems. It examines the
+fundamental principles of concurrency control in transactional systems, then
+traces the evolution of storage technology that has reshaped performance
+bottlenecks, introduces a representative approximate data structure, and finally
+presents the compelling case for why approximate timestamping represents a
+necessary innovation.
 
 \section{Concurrency Control in Transactional Systems}
 \label{sec:background:cc}
 
 Concurrency control is the set of mechanisms that ensure multiple transactions
 can execute simultaneously while maintaining data consistency. To understand why
-this is crucial, we must first examine the fundamental properties that all
+this is crucial, this section first examines the fundamental properties that all
 transactional systems must guarantee.
 
 \subsection{The ACID Properties and the Need for Concurrency Control}
@@ -66,47 +65,30 @@ before they occur. These protocols assume that conflicts are likely and take
 proactive measures to avoid them by controlling access to data items.
 
 \textbf{Two-Phase Locking (2PL)}~\cite{eswaran1976notions} is the most widely
-used lock-based protocol. It operates in two distinct phases:
-
-\begin{itemize}
-\item \textbf{Growing Phase}: During this phase, a transaction can acquire locks
-on data items but cannot release any locks. This phase continues as the
-transaction reads and writes data.
-\item \textbf{Shrinking Phase}: Once the transaction enters this phase, it can
-only release locks and cannot acquire new ones. This phase continues until the
+used lock-based protocol. It operates in two distinct phases. During the
+\textit{Growing Phase}, a transaction can acquire locks on data items but cannot
+release any locks. This phase continues as the transaction reads and writes
+data. Once the transaction enters the \textit{Shrinking Phase}, it can only
+release locks and cannot acquire new ones. This phase continues until the
 transaction completes.
-\end{itemize}
 
-The two-phase rule ensures that no other transaction can access a data item
+This two-phase rule ensures that no other transaction can access a data item
 between the time when a transaction reads it and when it writes to it,
-preventing certain types of inconsistencies.
+preventing certain types of inconsistencies. This property, combined with the
+requirement that all locks are held until commit, enables 2PL to prevent
+cascading aborts: once a transaction commits, no other transaction that read its
+data needs to be aborted. However, these benefits come at a cost: managing locks
+requires significant computational resources, including maintaining lock tables
+and handling lock requests, resulting in high CPU overhead. When transactions
+wait for each other's locks, deadlocks can occur, requiring detection and
+resolution mechanisms. These deadlock risks are particularly problematic in
+high-contention scenarios, where many transactions may be blocked waiting for
+locks, reducing overall system throughput and limiting parallelism.
 
-\textbf{Advantages of 2PL:}
-\begin{itemize}
-\item \textbf{Prevents cascading aborts}: Once a transaction commits, no other
-transaction that read its data needs to be aborted.
-\item \textbf{Widely implemented}: Most commercial database systems use some
-form of 2PL.
-\item \textbf{Predictable behavior}: The locking mechanism provides clear
-guarantees about when conflicts will occur.
-\end{itemize}
-
-\textbf{Disadvantages of 2PL:}
-\begin{itemize}
-\item \textbf{High CPU overhead}: Managing locks requires significant
-computational resources, including maintaining lock tables and handling lock
-requests.
-\item \textbf{Deadlock potential}: When transactions wait for each other's
-locks, deadlocks can occur, requiring detection and resolution mechanisms.
-\item \textbf{Limited parallelism}: In high-contention scenarios, many
-transactions may be blocked waiting for locks, reducing overall system
-throughput.
-\end{itemize}
-
-To address deadlock issues, practical implementations often use policies like
-\emph{no-wait}~\cite{DBLP:conf/sigmod/RenFA16,DBLP:conf/usenix/TangE18}, where
-transactions immediately abort if they cannot acquire a needed lock, rather than
-waiting and potentially creating deadlocks.
+To address these deadlock issues, practical implementations often use policies
+like \emph{no-wait}~\cite{DBLP:conf/sigmod/RenFA16,DBLP:conf/usenix/TangE18},
+where transactions immediately abort if they cannot acquire a needed lock,
+rather than waiting and potentially creating deadlocks.
 
 
 \subsubsection{Optimistic Concurrency Control}
@@ -117,41 +99,25 @@ than using locks to prevent conflicts from occurring, OCC assumes that conflicts
 are rare and permits transactions to proceed in parallel without synchronization
 during most of their execution.
 
-A typical OCC protocol consists of three phases:
-\begin{itemize}
-    \item \textbf{Read Phase}: A transaction reads data and performs
-    computations, keeping track of the data items it accesses but making changes
-    only to private, local copies.
-    \item \textbf{Validation Phase}: When the transaction is ready to commit,
-    the system checks whether the data the transaction read has been modified by
-    other transactions since it started. If so, the transaction must abort and
-    is typically retried. 
-    \item \textbf{Write Phase}: If validation succeeds, the transaction's
-    changes are applied to the database atomically.
-\end{itemize}
+A typical OCC protocol consists of three phases. During the \textit{Read Phase},
+a transaction reads data and performs computations, keeping track of the data
+items it accesses but making changes only to private, local copies. When the
+transaction is ready to commit, the \textit{Validation Phase} begins, where the
+system checks whether the data the transaction read has been modified by other
+transactions since it started. If so, the transaction must abort and is
+typically retried. If validation succeeds, the \textit{Write Phase} applies the
+transaction's changes to the database atomically.
 
-\textbf{Advantages of OCC:}
-\begin{itemize}
-    \item \textbf{No deadlocks}: There is no blocking on locks, so deadlocks
-    cannot occur.
-    \item \textbf{High concurrency}: Transactions operate freely during the read
-    phase, maximizing parallelism.
-    \item \textbf{Efficient for low contention}: When conflicts are rare, aborts
-    are infrequent and performance is high.
-\end{itemize}
-
-\textbf{Disadvantages of OCC:}
-\begin{itemize}
-    \item \textbf{High abort rates under contention}: In workloads with frequent
-    conflicting accesses, many transactions may be aborted and retried, reducing
-    throughput.
-    \item \textbf{Validation overhead}: The process of checking for conflicts at
-    commit time incurs computational overhead, especially as the number of
-    transactions scales.
-    \item \textbf{Write skew and complex anomalies}: Careful protocol design is
-    required to prevent subtle anomalies like write skew in some OCC
-    implementations.
-\end{itemize}
+There is no blocking on locks, so deadlocks cannot occur. Transactions operate
+freely during the read phase, maximizing parallelism and providing high
+concurrency. When conflicts are rare, aborts are infrequent and performance is
+high, making OCC efficient for low-contention workloads. However, in workloads
+with frequent conflicting accesses, many transactions may be aborted and
+retried, reducing throughput due to high abort rates under contention. The
+process of checking for conflicts at commit time incurs computational overhead,
+especially as the number of transactions scales. Careful protocol design is
+required to prevent subtle anomalies like write skew in some OCC
+implementations.
 
 Overall, OCC is well-suited to environments where transactions are short and
 conflicts are rare, such as many in-memory and read-mostly workloads.
@@ -198,46 +164,31 @@ significantly reducing abort rates compared to traditional optimistic protocols.
 \section{The Evolution of On-Disk Storage Systems}
 \label{sec:background:storage}
 
-The performance characteristics of database systems have been fundamentally
-transformed by advances in storage technology. Understanding this evolution is
-crucial for appreciating why traditional concurrency control approaches may no
-longer be optimal for modern systems.
+This section examines how advances in storage technology have fundamentally
+transformed the performance characteristics of database systems. The section
+begins by examining how the performance bottleneck has shifted from I/O latency
+to CPU overhead, then traces the evolution of storage media from hard disk
+drives to modern NVMe SSDs, and finally introduces CXL as an emerging technology
+that bridges storage and memory semantics.
 
 \subsection{The Shifting Performance Landscape}
 \label{sec:background:performance-shift}
 
-For decades, the primary performance bottleneck in database systems was the high
-latency of mechanical storage devices. Hard disk drives (HDDs) required physical
-movement of read/write heads and rotation of platters to access data, resulting
-in access times measured in milliseconds. This I/O latency was so dominant that
-it masked other system overheads, including the computational cost of
-concurrency control mechanisms.
-
-The introduction of solid-state storage (SSDs) has dramatically changed this
-landscape. Modern NVMe solid-state drives can achieve access times in the tens
-of microseconds—orders of magnitude faster than traditional hard drives. This
-shift has exposed other system components as the new performance bottlenecks,
-particularly the CPU overhead associated with concurrency control protocols.
-
-\subsection{A Performance Review of Storage Media}
-\label{sec:background:storage-media}
-
-Understanding the performance characteristics of different storage technologies
-is essential for designing efficient database systems.
+For decades, mechanical storage (HDDs) imposed millisecond-scale latency that
+dominated end-to-end performance, masking other sources of overhead such as the
+CPU cost of concurrency control. With the advent of solid-state storage—and
+especially NVMe SSDs—access latencies dropped to tens of microseconds, exposing
+non-I/O bottlenecks, most notably CPU overhead from concurrency control
+protocols.
 
 \textbf{Hard Disk Drives (HDDs)} represent the traditional storage technology
 that dominated database systems for decades. Their performance is fundamentally
-limited by mechanical factors:
-\begin{itemize}
-\item \textbf{Seek time}: The time required to move the read/write head to the
-correct track
-\item \textbf{Rotational latency}: The time needed for the desired data to
-rotate under the head
-\end{itemize}
-These mechanical limitations result in access times of several milliseconds and
-very low random I/O performance, typically achieving only 100-200 input/output
-operations per second (IOPS)~\cite{samsung2013ssd}. However, HDDs are still used
-in many systems because of their low cost and high capacity.
+limited by mechanical factors: the seek time required to move the read/write
+head to the correct track, and the rotational latency needed for the desired
+data to rotate under the head. These mechanical limits yield very low random I/O
+performance, typically only 100--200 input/output operations per second (IOPS)
+with access times of several milliseconds~\cite{samsung2013ssd}. HDDs remain in
+use due to low cost and high capacity.
 
 \textbf{SATA Solid-State Drives (SSDs)} eliminated mechanical delays but were
 constrained by the legacy SATA III interface, which was designed for
@@ -250,25 +201,36 @@ HDDs~\cite{samsung2013ssd}.
 \textbf{NVMe Solid-State Drives (SSDs)} represent the current state-of-the-art,
 designed from the ground up for flash memory. NVMe utilizes the high-bandwidth,
 low-latency PCIe bus and supports massive parallelism with up to 64,000 command
-queues. Modern Gen4 NVMe drives can achieve~\cite{crucial-t700-review}:
-\begin{itemize}
-\item Throughput exceeding 7 GB/s
-\item Over 1 million IOPS
-\item Latencies in the tens of microseconds
-\end{itemize}
+queues. Modern Gen4 NVMe drives can achieve~\cite{crucial-t700-review}
+throughput exceeding 7 GB/s, over 1 million IOPS, and latencies in the tens of
+microseconds.
 
-\textbf{CXL-based SSDs} are a new type of SSD that uses the CXL protocol to
-connect to the CPU. They are much faster than NVMe SSDs, with latencies in the
-single-digit microseconds and throughput in the tens of
-GB/s~\cite{yang2023overcoming}. CXL-based SSDs are still in the early stages of
-development, but they are already being used in some
-systems~\cite{samsung2022fms}.
-\begin{itemize}
-\item Throughput exceeding 16 GB/s
-\item Over 1 million IOPS
-\item Latencies in the single-digit microseconds
-\end{itemize}
 
+\subsection{Compute Express Link (CXL): Accelerating SSDs with Memory-Semantic IO}
+\label{sec:background:cxl}
+
+Compute Express Link (CXL)~\cite{das2024introduction-cxl,cxl-consortium} is a
+cache-coherent protocol atop PCIe that unifies CPUs, accelerators, and memory
+devices into a single memory-centric domain. It enables shared, coherent
+load/store access between host and devices, reducing synchronization and
+data-movement overheads, and it scales via CXL switches to attach additional
+devices without redesign. In particular, Type-3 (memory-expansion) devices
+expose host-managed device memory (HDM) that the CPU accesses directly with
+ordinary loads and stores~\cite{cxl-consortium}.
+
+In the context of Type-3 memory expansion, CXL can accelerate SSDs by bringing
+them into the cache-coherent domain, overcoming fundamental limitations of
+traditional PCIe storage~\cite{jung2022hello,yang2023overcoming}. Historically,
+while PCIe devices could map internal memory through Base Address Registers
+(BARs), the host had to treat such accesses as non-cacheable, preventing use of
+CPU caches and degrading performance. With CXL, load/store requests to a
+CXL-attached SSD's address space—mapped into the host's cacheable system
+memory—become cacheable. Incorporating PCIe storage into the coherent hierarchy
+bridges block semantics to byte-addressable, memory-compatible semantics and
+substantially lowers latency: projections report up to 129.5$\times$ lower
+latency than PCIe-based memory expanders due to host cache
+usage~\cite{jung2022hello}, and CXL-enabled SSDs can serve 68–91\% of memory
+requests in under a microsecond~\cite{yang2023overcoming}.
 
 \subsection{Modern Write-Optimized Data Structures}
 \label{sec:background:write-optimized}
@@ -336,16 +298,16 @@ theoretically more appealing.
 
 The computational efficiency of timestamp-based protocols comes from their
 ability to make concurrency control decisions based on simple timestamp
-comparisons rather than complex lock management. However, as we will see,
-applying these protocols directly to on-disk systems introduces new challenges.
+comparisons rather than complex lock management. However, applying these
+protocols directly to on-disk systems introduces new challenges.
 
 \subsection{The Prohibitive Cost of Naive On-Disk Timestamps}
 \label{sec:background:disk-timestamp-cost}
 
 The critical flaw in applying timestamp ordering directly to on-disk systems
 lies in the storage requirements for timestamps. Storing per-key timestamps on
-disk creates a new, severe I/O bottleneck that can negate the performance
-benefits of timestamp-based protocols.
+disk creates a new, I/O bottleneck that can negate the performance benefits of
+timestamp-based protocols.
 
 This problem is particularly acute when combined with the Query/Insert Asymmetry
 of write-optimized data structures. A fast write operation in an LSM-tree
@@ -372,12 +334,8 @@ ratios of less than 5\%, sometimes as little as
 pairs or more abundant RAM, timestamps would still consume a significant portion
 of memory that could otherwise be used for caching or other purposes.
 
-\subsection{The Promise and the Pitfall}
+\subsection{Case Study: The Promise and the Pitfall}
 \label{sec:background:benchmarks}
-
-To provide concrete, data-driven motivation, we highlight our benchmark results
-that illustrate both the potential and the challenges of timestamp-based
-concurrency control in on-disk systems.
 
 \begin{figure}[!t]
     \centering
@@ -453,10 +411,26 @@ concurrency control in on-disk systems.
 
             \node[right=1cm, yshift=-5pt] at (c -| current bounding box.east) {\ref{grouplegend}};
         \end{tikzpicture}
-    }
-    \caption[Highlights of goodputs for YCSB workloads]{Performance comparison of various concurrency control mechanisms across different YCSB workloads, demonstrating the promise of in-memory timestamp ordering and the pitfalls of disk-based approaches.}
+    } \caption[Highlights of goodputs for YCSB workloads]{Performance
+    comparison of various concurrency control mechanisms across different YCSB
+    workloads, demonstrating the promise of in-memory timestamp ordering and the
+    pitfalls of disk-based approaches. (Running 120 threads on NVMe SSD)}
     \label{fig:motivation}
 \end{figure}
+
+\Cref{fig:motivation} evaluates YCSB workloads, modified to execute transactions
+in parallel, spanning contention (high, medium) and access patterns (read- vs.
+write-intensive). It reports goodput, the throughput of successfully committed
+transactions, to discount wasted work from aborts. The evaluation compares 2PL,
+OCC, and two timestamp-based methods (STO and TicToc), each under three
+timestamp placement strategies: stored on disk, in an idealized in-memory exact
+timestamp store, and the proposed approximate timestamp store (\sketchname with
+32KiB). This bracketing (Disk vs. Memory) with \sketchname\ in between isolates
+the core tradeoff—CPU efficiency of timestamp-based methods versus the I/O and
+lookup costs of materializing per-key timestamps on disk—while holding hardware
+constant. The observed goodput gaps motivate approximate timestamping to achieve
+near-in-memory performance with a minimal memory footprint.
+
 
 \paragraph{The Promise (TicToc-Memory):} When timestamps are stored in an idealized
 in-memory hash table, advanced protocols like TicToc dramatically outperform
@@ -471,10 +445,10 @@ The performance gap between Memory and Disk variants is particularly pronounced
 for write-intensive workloads, where the Query/Insert Asymmetry has the greatest
 impact.
 
-\paragraph{The Opportunity:} This stark contrast between the in-memory and on-disk
-variants perfectly frames the research problem. It establishes a clear need for
-a solution that can deliver the high performance of the in-memory approach
-without its prohibitive memory cost. The results from STO-\sketchname and
-TicToc-\sketchname, which use our proposed approximate timestamping technique,
-demonstrate that such a solution is achievable, setting the stage for the
-detailed presentation of our approach in the following chapters.
+\paragraph{The Opportunity:} This stark contrast between the in-memory and
+on-disk variants perfectly frames the research problem. It establishes a clear
+need for a solution that can deliver the high performance of the in-memory
+approach without its prohibitive memory cost. The results from STO-\sketchname
+and TicToc-\sketchname, which use the proposed approximate timestamping
+technique, demonstrate that such a solution is achievable, setting the stage for
+the detailed presentation of this approach in the following chapters.

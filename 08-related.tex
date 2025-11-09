@@ -116,62 +116,57 @@ validation, and TicToc relies on decentralized, fine-grained validation.
 
 \section{On-Disk Concurrency Control}
 
-Conventional concurrency control mechanisms, such as two-phase locking
-(2PL) and optimistic concurrency control (OCC), are widely employed by
-both academic and commercial disk-based
+Conventional concurrency control mechanisms, such as two-phase locking (2PL) and
+optimistic concurrency control (OCC), are widely employed by both academic and
+commercial disk-based
 databases~\cite{rocksdb,googlef1,leveldb,asterixdb,cstore,berkeleydb,couchbase,asuresql}.
-For example, RocksDB supports both pessimistic and optimistic
-concurrency controls through 2PL and OCC, while Google F1 (Spanner)
-uses timestamp ordering with locks and OCC. In contrast, there has
-been significant research on concurrency control mechanisms tailored
-for in-memory databases~\cite{yu2016tictoc}. \sketchname brings modern
-concurrency control algorithms to disk-based transactional databases,
-including those originally designed for in-memory contexts, instead of
-relying solely on classical methods.
+For example, RocksDB supports both pessimistic and optimistic concurrency
+controls through 2PL and OCC, while Google F1 (Spanner) uses timestamp ordering
+with locks and OCC. In contrast, there has been significant research on
+concurrency control mechanisms tailored for in-memory
+databases~\cite{yu2016tictoc}. \sketchname brings modern concurrency control
+algorithms to disk-based transactional databases, including those originally
+designed for in-memory contexts, instead of relying solely on classical methods.
 
 \section{Timestamp Access Acceleration}
 
-Many disk-based RDBMSs (e.g., Postgres and MySQL) and write-optimized
-systems (e.g., RocksDB) embed timestamps in their tuple structures,
-thereby avoiding extra I/O once the relevant pages are in memory.
-Recent studies on Bf-Tree~\cite{DBLP:journals/pvldb/HaoC24} and
-Umbra~\cite{umbra-cc} highlight the critical role of efficient page
-cache management in boosting performance, as on-disk timestamps can be
-fetched quickly once loaded. By contrast, our approach decouples
-timestamps from on-disk tuple structures and stores them in FPSketch.
-This design not only accelerates timestamp operations of CCs but also
-offers greater opportunities for high cache utilization of records on
-disk. We believe that transactional systems leveraging FPSketch can
-attain even stronger performance gains when paired with robust page
-cache management.
+Many disk-based RDBMSs (e.g., Postgres and MySQL) and write-optimized systems
+(e.g., RocksDB) embed timestamps in their tuple structures, thereby avoiding
+extra I/O once the relevant pages are in memory. Recent studies on
+Bf-Tree~\cite{DBLP:journals/pvldb/HaoC24} and Umbra~\cite{umbra-cc} highlight
+the critical role of efficient page cache management in boosting performance, as
+on-disk timestamps can be fetched quickly once loaded. By contrast, This
+approach decouples timestamps from on-disk tuple structures and stores them in
+\sketchname. This design not only accelerates timestamp operations of CCs but
+also offers greater opportunities for high cache utilization of records on disk.
+Transactional systems leveraging \sketchname can attain even stronger
+performance gains when paired with robust page cache management.
 
 \section{Approximation and Summarization in Databases}
 
-Numerous databases approximate or summarize transaction metadata in
-order to optimize I/O or reduce memory usage.  For example, PostgreSQL
-maintains hintbits~\cite{postgres-visibility} in each tuple,
-indicating whether the transction that added that tuple has committed,
-enabling it to avoid a query to its commit log.  AWS Aurora maintains
-Min Read Point LSNs~\cite{VerbitskiGuSa17}, which conservatively
-indicate the oldest LSN that might still be read, enabling garbage
-collection of pages with older LSNs.  And many MVCC schemes use high
-watermarks~\cite{BottcherLeNe19} to determine which old versions can
-be garbage collected.
+Numerous databases approximate or summarize transaction metadata in order to
+optimize I/O or reduce memory usage.  For example, PostgreSQL maintains
+hintbits~\cite{postgres-visibility} in each tuple, indicating whether the
+transction that added that tuple has committed, enabling it to avoid a query to
+its commit log.  AWS Aurora maintains Min Read Point
+LSNs~\cite{VerbitskiGuSa17}, which conservatively indicate the oldest LSN that
+might still be read, enabling garbage collection of pages with older LSNs.  And
+many MVCC schemes use high watermarks~\cite{BottcherLeNe19} to determine which
+old versions can be garbage collected.
 
-We believe \sketchname is fundamentally different from prior work
-because, in all these prior schemes, approximations and summations are
-used as fast paths (e.g. hintbits) or to drive garbage collection.
-However, they are not used as part of the CC mechanism itself.
+\sketchname is fundamentally different from prior work because, in all these
+prior schemes, approximations and summations are used as fast paths (e.g.
+hintbits) or to drive garbage collection. However, they are not used as part of
+the CC mechanism itself.
 
 \section{Approximation with Sketches}
 
-In networking, FlexSwitch~\cite{flexswitch} uses an approximation
-technique called min-timestamp to manage packet routing through
-network switches. However, min-timestamp operates by overwriting
-conflicting timestamps without guaranteeing a lower bound for these
-values, allowing overwrites to occur at any time by any entity. In
-contrast, \sketchname ensures monotonically increasing timestamps.
-Additionally, it provides high-resolution timestamps that can be
-shared among active transactions. This not only maintains correctness
-in timestamp-based concurrency control mechanisms but also optimizes
-space utilization.
+In networking, FlexSwitch~\cite{flexswitch} uses an approximation technique
+called min-timestamp to manage packet routing through network switches. However,
+min-timestamp operates by overwriting conflicting timestamps without
+guaranteeing a lower bound for these values, allowing overwrites to occur at any
+time by any entity. In contrast, \sketchname ensures monotonically increasing
+timestamps. Additionally, it provides high-resolution timestamps that can be
+shared among active transactions. This not only maintains correctness in
+timestamp-based concurrency control mechanisms but also optimizes space
+utilization.
