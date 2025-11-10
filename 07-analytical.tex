@@ -719,7 +719,7 @@ and the write-intensive workloads, respectively.
                 \coordinate (top) at (rel axis cs:0,1);% coordinate at top of the first plot
 
                 % graph [2,1] abort rate
-                \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}, ylabel style={yshift=-3pt}]
+                \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}, ylabel style={yshift=-3pt}, ymax=0.25]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.120156)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.153397)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 0.081903) (1.7125, 0.025545) (3, 0.034029)};
@@ -739,7 +739,7 @@ and the write-intensive workloads, respectively.
                 \addplot[FPSketch-BarStyle] coordinates {(0.425, 11.8456) (1.7125, 10.549667) (3, 11.9516)};
 
                 % graph [4,1] medium abort rate
-                \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}, ylabel style={yshift=-3pt}]
+                \nextgroupplot[AbortRateBarChartPlot, ylabel={Abort rate}, ylabel style={yshift=-3pt}, ymax=0.25]
                 \addplot[2PL-BarStyle, forget plot] coordinates {(-0.5, 0.000225)};
                 \addplot[KR-OCC-BarStyle, forget plot] coordinates {(-0.26, 0.000255)};
                 \addplot[Memory-BarStyle] coordinates {(0.425, 0.000116) (1.7125, 0.000018) (3, 0.000039)};
