@@ -51,15 +51,15 @@ on disk at all? The answer lies in the requirements of timestamp-based
 concurrency control protocols. When a new transaction begins and accesses a key,
 it must check that key's timestamp to determine whether the transaction can
 proceed or must abort to maintain serializability. Moreover, high-performance
-timestamp-based CC methods including TicToc~\cite{yu2016tictoc} dynamically
-choose a transaction timestamp during the validation phase based on the
-timestamps of the keys being accessed, rather than simply assigning a timestamp
-at the beginning of the transaction. In both cases, timestamps cannot be
-discarded simply because no transaction is currently accessing a key, as future
-transactions will need this information to make correct concurrency control
-decisions. However, maintaining exact timestamps for all keys in memory is
-prohibitively expensive for large databases, creating the very storage overhead
-that undermines timestamp-based protocols.
+timestamp-based CC methods including TicToc~\cite{yu2016tictoc} dynamically find
+a logical timestamp ordering during the validation phase based on the timestamps
+of the keys being accessed, resulting in higher concurrency by committing more
+transactions than traditional timestamp-based CC methods. In both cases,
+timestamps cannot be discarded simply because no transaction is currently
+accessing a key, as future transactions will need this information to make
+correct concurrency control decisions. However, maintaining exact timestamps for
+all keys in memory is prohibitively expensive for large databases, creating the
+very storage overhead that undermines timestamp-based protocols.
 
 The key insight that resolves this dilemma is that, while exact timestamps are
 required for keys currently being accessed by active transactions, it is
@@ -72,6 +72,15 @@ an overapproximation (upper bound) instead of exact values, correctness is
 preserved while dramatically reducing memory requirements. This
 overapproximation may cause harmless extra transaction aborts, but it will not
 violate database correctness.
+
+However, storing approximate timestamps creates an inherent compromise between
+memory footprint and accuracy. Allocating more space for timestamp storage keeps
+its values close to the precise timestamps, while shrinking the structure (e.g.,
+by collapsing timestamps of inactive keys into a single shared counter such as
+the last commit timestamp) rapidly widens the gap between approximate and
+precise values. The CC protocol must then assume larger timestamps for inactive
+keys, triggering more conservative abort decisions and reducing the number of
+committed transactions (shown in \Cref{fig:sketch_size}).
 
 
 \section{\sketchname: A New Approach for Timestamp-Based CC on Disk}
