@@ -220,6 +220,24 @@
   numpages  = {28}
 }
 
+@misc{cxl-consortium,
+  title        = {Compute Express Link},
+  author       = {{Compute Express Link Consortium}},
+  year         = {2025},
+  howpublished = {\url{https://computeexpresslink.org/}}
+}
+
+@article{das2024introduction,
+  title     = {An introduction to the compute express link (cxl) interconnect},
+  author    = {Das Sharma, Debendra and Blankenship, Robert and Berger, Daniel},
+  journal   = {ACM Computing Surveys},
+  volume    = {56},
+  number    = {11},
+  pages     = {1--37},
+  year      = {2024},
+  publisher = {ACM New York, NY}
+}
+
 @article{dash,
   author     = {Lu, Baotong and Hao, Xiangpeng and Wang, Tianzheng and Lo, Eric},
   title      = {Dash: scalable hashing on persistent memory},
@@ -344,6 +362,7 @@
   month     = jul
 }
 
+
 @article{eswaran1976notions,
   author    = {Kapali P. Eswaran and
                Jim Gray and
@@ -375,7 +394,6 @@
   publisher = {USENIX Association},
   month     = mar
 }
-
 
 @inproceedings{googlef1,
   title     = {F1: A Distributed SQL Database That Scales},
@@ -461,6 +479,15 @@
   isbn      = {}
 }
 
+
+@inproceedings{jung2022hello,
+  title     = {Hello bytes, bye blocks: Pcie storage meets compute express link for memory expansion (cxl-ssd)},
+  author    = {Jung, Myoungsoo},
+  booktitle = {Proceedings of the 14th ACM Workshop on Hot Topics in Storage and File Systems},
+  pages     = {45--51},
+  year      = {2022}
+}
+
 @inproceedings{KaiyrakhmetLeNa19,
   author    = {Olzhas Kaiyrakhmet and Songyi Lee and Beomseok Nam and Sam H. Noh and Young-ri Choi},
   title     = {SLM-DB: Single-Level Key-Value Store with Persistent Memory},
@@ -472,7 +499,6 @@
   url       = {https://www.usenix.org/conference/fast19/presentation/kaiyrakhmet},
   publisher = {{USENIX} Association}
 }
-
 
 @inproceedings{KourtisIoKo19,
   author    = {Kornilios Kourtis and Nikolas Ioannou and Ioannis Koltsidas},
@@ -514,11 +540,9 @@
 @misc{linuxkernel_ramdisk,
   author       = {{The Linux Kernel Developers}},
   title        = {Using the {RAM} disk block device with {Linux}},
-  howpublished = {The Linux Kernel Documentation},
+  howpublished = {\url{https://www.kernel.org/doc/html/latest/admin-guide/blockdev/ramdisk.html}},
   year         = {2020},
-  month        = {August},
-  url          = {https://www.kernel.org/doc/html/latest/admin-guide/blockdev/ramdisk.html},
-  note         = {Accessed: 2025-11-02}
+  month        = {August}
 }
 
 @misc{lmdb,
@@ -545,6 +569,7 @@
                https://dblp.org}
 }
 
+
 @inproceedings{lu2016wisckey,
   author    = {Lu, Lanyue and Pillai, Thanumalayan Sankaranarayana
                and Arpaci-Dusseau, Andrea C. and Arpaci-Dusseau,
@@ -570,7 +595,6 @@
   year          = {2015}
 }
 
-
 @misc{microprocessor-trend-data,
   optkey       = {},
   author       = {Karl Rupp},
@@ -580,7 +604,7 @@
   year         = {2018},
   optnote      = {},
   optannote    = {}
-}
+} 
 
 @misc{mongodb,
   optkey       = {},
@@ -602,7 +626,7 @@
   year         = {2020},
   optnote      = {},
   optannote    = {}
-} 
+}
 
 @inproceedings{neumann2015fast,
   title     = {Fast serializable multi-version concurrency control for main-memory database systems},
@@ -739,10 +763,8 @@
 @misc{postgresql-slru,
   author       = {{PostgreSQL}},
   title        = {{PostgreSQL Source Code: src/backend/access/transam/slru.c}},
-  howpublished = {Source Code Repository},
-  year         = {2025},
-  url          = {https://github.com/postgres/postgres/blob/master/src/backend/access/transam/slru.c},
-  note         = {Accessed on July 15, 2025}
+  howpublished = {\url{https://github.com/postgres/postgres/blob/master/src/backend/access/transam/slru.c}},
+  year         = {2025}
 }
 
 @inproceedings{qian2024epic,
@@ -1071,6 +1093,7 @@
   year         = {2012}
 }
 
+
 @inproceedings{vdfs15,
   author    = {Luke Lu and Wenguang Wang and Maxime Austruy and Zhichao Li and George Huang and Ankur Pai and Christos Karamanolis},
   title     = {{VDFS}: A Cloud-Centric Virtual Distributed File System},
@@ -1097,7 +1120,6 @@
   series    = {SIGMOD '17}
 }
 
-
 @misc{wiredtiger,
   optkey       = {},
   author       = {WiredTiger},
@@ -1109,6 +1131,7 @@
   optannote    = {}
 }
 
+
 @inproceedings{wolf2015evaluation,
   title        = {An evaluation of strict timestamp ordering concurrency control for main-memory database systems},
   author       = {Wolf, Stephan and M{\"u}he, Henrik and Kemper, Alfons and Neumann, Thomas},
@@ -1117,6 +1140,7 @@
   year         = {2015},
   organization = {Springer}
 }
+
 
 @inproceedings{wolf2015sto,
   title        = {An evaluation of strict timestamp ordering concurrency control for main-memory database systems},
@@ -1175,14 +1199,12 @@
   year      = {2019}
 }
 
-
 @article{yu2014staring,
   title     = {Staring into the abyss: An evaluation of concurrency control with one thousand cores},
   author    = {Yu, Xiangyao and Bezerra, George and Pavlo, Andrew and Devadas, Srinivas and Stonebraker, Michael},
   year      = {2014},
   publisher = {Association for Computing Machinery (ACM)}
 }
-
 
 @inproceedings{yu2016tictoc,
   title     = {{Tictoc: Time traveling optimistic concurrency control}},
@@ -1201,4 +1223,12 @@
   optyear      = {2020},
   optnote      = {},
   optannote    = {}
+}
+
+@inproceedings{zhong2025oasis,
+  title     = {Oasis: Pooling PCIe Devices Over CXL to Boost Utilization},
+  author    = {Zhong, Yuhong and Berger, Daniel S and Zardoshti, Pantea and Saurez, Enrique and Nelson, Jacob and Ports, Dan RK and Psistakis, Antonis and Fried, Joshua and Cidon, Asaf},
+  booktitle = {Proceedings of the ACM SIGOPS 31st Symposium on Operating Systems Principles},
+  pages     = {101--119},
+  year      = {2025}
 }

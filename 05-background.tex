@@ -209,14 +209,14 @@ microseconds.
 \subsection{Compute Express Link (CXL): Accelerating SSDs with Memory-Semantic IO}
 \label{sec:background:cxl}
 
-Compute Express Link (CXL)~\cite{das2024introduction-cxl,cxl-consortium} is a
+Compute Express Link (CXL)~\cite{das2024introduction,cxl-consortium} is a
 cache-coherent protocol atop PCIe that unifies CPUs, accelerators, and memory
 devices into a single memory-centric domain. It enables shared, coherent
 load/store access between host and devices, reducing synchronization and
 data-movement overheads, and it scales via CXL switches to attach additional
 devices without redesign. In particular, Type-3 (memory-expansion) devices
 expose host-managed device memory (HDM) that the CPU accesses directly with
-ordinary loads and stores~\cite{cxl-consortium}.
+ordinary loads and stores~\cite{das2024introduction}.
 
 In the context of Type-3 memory expansion, CXL can accelerate SSDs by bringing
 them into the cache-coherent domain, overcoming fundamental limitations of
