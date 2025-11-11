@@ -58,8 +58,8 @@ transactions than traditional timestamp-based CC methods. In both cases,
 timestamps cannot be discarded simply because no transaction is currently
 accessing a key, as future transactions will need this information to make
 correct concurrency control decisions. However, maintaining exact timestamps for
-all keys in memory is prohibitively expensive for large databases, creating the
-very storage overhead that undermines timestamp-based protocols.
+all keys in memory is prohibitively impractical for large databases, creating a
+significant storage space overhead.
 
 The key insight that resolves this dilemma is that, while exact timestamps are
 required for keys currently being accessed by active transactions, it is
