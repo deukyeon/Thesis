@@ -238,13 +238,13 @@ requests in under a microsecond~\cite{yang2023overcoming}.
 The evolution of storage technology has driven the development of new data
 structures designed to exploit the characteristics of solid-state storage.
 
-\textbf{Log-Structured Merge (LSM) trees}~\cite{OneillChGaOn96} and similar
+Log-Structured Merge (LSM) trees~\cite{OneillChGaOn96} and similar
 write-optimized structures have become increasingly popular for on-disk storage
 systems. These structures are designed to maximize write performance by batching
 and organizing writes efficiently.
 
-A key property of these structures is the \textbf{Query/Insert
-Asymmetry}~\cite{bender2015introduction}: they can ingest new data (writes)
+A key property of these structures is the Query/Insert
+Asymmetry~\cite{bender2015introduction}: they can ingest new data (writes)
 orders of magnitude faster than they can service random queries (reads). For
 example, SplinterDB~\cite{splinterdb}, which uses a write-optimized structure
 called a \bets~\cite{BrodalFa03}, can perform over 2 million random insertions
