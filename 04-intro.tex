@@ -22,18 +22,40 @@ when there are many transactions.
 
 On the other side are timestamp-based methods, such as Strict Timestamp Ordering
 (STO)~\cite{bernstein1987concurrency}, Multi-Version Timestamp Ordering
-(MVTO)~\cite{reed1983mvto}, and newer types like TicToc~\cite{yu2016tictoc}.
-These use timestamps to decide the order of transactions, often allowing for
-more concurrency and fewer aborted transactions. But in databases where data is
-stored on disk, timestamp-based methods come with a big drawback: they create a
-lot of extra storage and I/O overhead. They have to keep track of read and write
-timestamps for every row of data, and if these timestamps are kept on disk,
-every operation on the data could make the system do more slow I/O operations.
-For example, in a basic STO system~\cite{bernstein1987concurrency}, just reading
-a data item means also writing its read timestamp back to disk. Updating a row
-also requires reading its old timestamps before doing anything. This extra
-metadata overhead turns simple, fast operations into slower ones that involve
-both reading and writing, reducing the system's performance.
+(MVTO)~\cite{reed1983mvto}, and newer approaches such as
+TicToc~\cite{yu2016tictoc}. These methods use timestamps to determine the
+serialization order of transactions, often achieving higher concurrency and
+fewer aborted transactions than lock-based approaches. In traditional timestamp
+ordering schemes like STO and MVTO, each transaction receives a timestamp when
+it begins, which determines its position in the serialization order. When
+accessing a data item, these schemes compare the transaction's timestamp against
+the item's read and write timestamps: a transaction can read an item only if its
+timestamp is greater than the item's write timestamp, and can write an item only
+if its timestamp is greater than the item's read and write timestamps. If an
+access would violate these ordering rules, the transaction immediately aborts.
+
+TicToc represents a more advanced approach: rather than assigning timestamps at
+transaction start, it employs a data-driven protocol that computes commit
+timestamps lazily during validation (the final check for conflicts before a
+transaction commits). By examining the actual timestamps of all accessed data
+items when a transaction is ready to commit, TicToc can dynamically find valid
+logical orderings that allow it to successfully commit transactions that
+traditional timestamp-based protocols would abort. This flexibility is key to
+avoiding aborts: for example, a transaction that commits physically after
+another transaction can receive a logical commit timestamp that places it before
+the other transaction in the serialization order, computed based on the
+timestamps of keys accessed by both transactions. This ability to decouple
+physical commit order from logical timestamp order ultimately reduces conflicts
+and improves concurrency.
+
+However, the timestamp-based methods face a significant challenge in disk-based
+databases: accessing timestamps on disk creates substantial I/O overhead. When
+these timestamps are stored on disk, even simple operations become expensive.
+For example, in a STO system~\cite{bernstein1987concurrency}, reading a data
+item requires writing its read timestamp back to disk, while updating a row
+requires first reading the item's existing timestamps before performing the
+update. This metadata overhead transforms what should be fast, simple operations
+into slower read-modify-write cycles, significantly reducing system performance.
 
 One might think that modern, fast storage devices like NVMe solid-state drives
 (SSDs)~\cite{crucial-t700-review} would solve this problem, but they do not.
@@ -63,33 +85,57 @@ significant storage space overhead.
 
 The key insight that resolves this dilemma is that, while exact timestamps are
 required for keys currently being accessed by active transactions, it is
-sufficient to maintain only an upper bound on timestamps for inactive keys.
-Timestamp-based CC protocols compare transaction timestamps against key
-timestamps to make abort decisions. If inactive keys' timestamps were to be
-completely forgotten, the critical information needed to enforce serializability
-when new transactions access these keys would be lost. However, by maintaining
-an overapproximation (upper bound) instead of exact values, correctness is
-preserved while dramatically reducing memory requirements. This
-overapproximation may cause harmless extra transaction aborts, but it will not
-violate database correctness.
+sufficient to maintain only an upper bound (a value that is guaranteed to be
+greater than or equal to the true timestamp) for inactive keys. Timestamp-based
+CC protocols compare transaction timestamps against key timestamps to make abort
+decisions. If inactive keys' timestamps were to be completely forgotten, the
+critical information needed to enforce serializability when new transactions
+access these keys would be lost. However, by maintaining an overapproximation (a
+value that may be larger than the true timestamp but never smaller) instead of
+exact values, correctness is preserved while dramatically reducing memory
+requirements. This overapproximation may cause harmless extra transaction aborts
+(when the system assumes a key's timestamp is larger than it actually is), but
+it will not violate database correctness.
 
-However, storing approximate timestamps creates an inherent compromise between
+Yet storing approximate timestamps creates an inherent compromise between
 memory footprint and accuracy. Allocating more space for timestamp storage keeps
 its values close to the precise timestamps, while shrinking the structure (e.g.,
 by collapsing timestamps of inactive keys into a single shared counter such as
 the last commit timestamp) rapidly widens the gap between approximate and
 precise values. The CC protocol must then assume larger timestamps for inactive
 keys, triggering more conservative abort decisions and reducing the number of
-committed transactions (shown in \Cref{fig:sketch_size}).
+committed transactions.
 
+This compromise particularly affects TicToc, whose advantage depends on having
+access to past timestamp information during validation. As noted earlier, TicToc
+requires this historical information to dynamically determine correct commit
+orderings. When keys become inactive and their timestamps are quickly
+overapproximated, TicToc loses access to the precise historical data it needs.
+Instead, it must base its validation decisions on overapproximated timestamps,
+which constrains its ability to find optimal commit orderings. For example,
+consider a transaction that accesses a key whose true timestamp is 100 but has
+been overapproximated to 150. TicToc must assume the key was last modified at
+time 150, forcing it to choose a commit timestamp of at least 151. If the
+transaction could have committed with any timestamp in the range 101-160 when
+using precise timestamps, the overapproximation reduces this viable range to
+151-160, eliminating 50 possible commit timestamps.
+
+This conservative behavior erodes TicToc's advantage: as overapproximation
+widens, TicToc's ability to leverage past timestamp information diminishes,
+making its dynamic timestamp selection less effective and degrading the number
+of committed transactions (shown in \Cref{fig:sketch_size}). This fundamental
+tension between memory efficiency and timestamp precision motivates the need for
+a new approach that can maintain sufficiently accurate timestamps for
+timestamp-based CC protocols while avoiding the prohibitive memory overhead of
+storing exact timestamps for all keys.
 
 \section{\sketchname: A New Approach for Timestamp-Based CC on Disk}
 
-The first main contribution presents a new approach for efficient
-timestamp-based concurrency control in disk-based databases. This approach is
-called \sketchname. The main idea behind \sketchname is to decompose traditional
-timestamp-based concurrency control mechanisms into two components: (1) the CC
-protocol itself (such as STO~\cite{bernstein1987concurrency} or
+To address this challenge, the first main contribution presents a new approach
+for efficient timestamp-based concurrency control in disk-based databases. This
+approach is called \sketchname. The main idea behind \sketchname is to decompose
+traditional timestamp-based concurrency control mechanisms into two components:
+(1) the CC protocol itself (such as STO~\cite{bernstein1987concurrency} or
 TicToc~\cite{yu2016tictoc}), and (2) an approximate storage system for
 timestamps, which is called \sketchname.
 
@@ -129,16 +175,19 @@ SplinterDB key-value store~\cite{splinterdb} (detailed in \Cref{sec:eval})
 demonstrate that \sketchname has a large impact: using \sketchname, advanced
 protocols like TicToc achieve speeds up to 14$\times$ faster than traditional
 2PL and KR-OCC~\cite{kung1981optimistic}, and up to 5.9$\times$ faster than
-standard disk-based timestamp methods on some workloads.
+standard disk-based timestamp methods on some workloads. These results
+demonstrate that \sketchname successfully resolves the tension between memory
+efficiency and timestamp precision, enabling high-performance timestamp-based
+concurrency control on disk-based databases.
 
 \section{Evaluating \sketchname Across the Storage Spectrum}
 
-While \sketchname works well on modern NVMe SSDs, this result raises a deeper
+While \sketchname works well on modern NVMe SSDs, these results raise a deeper
 research question: Is using approximate, in-memory metadata always useful, or is
-its benefit only clear for fast storage devices like NVMe SSDs? Separating the
-concurrency control logic from storage performance seems powerful, but this
-requires evaluation across all types of storage, from older, slower devices to
-the most modern memory-like storage.
+its benefit only clear for today's fast storage technologies like NVMe SSDs?
+Separating the concurrency control logic from storage performance seems
+powerful, but this requires evaluation across all types of storage, from
+traditional, slower devices to the most modern memory-like devices.
 
 The second main contribution addresses this issue directly. It presents a
 thorough analytical study of the \sketchname approach across a variety of
@@ -212,11 +261,18 @@ Primary Bottleneck & Mechanical (Seek/Rotation) & Interface/Protocol & CPU / Con
 
 \subsection{Slow Storage Environments}
 
-First, consider using \sketchname in HDDs and SATA SSDs. In these
-systems, each random I/O operation is extremely slow, measured in milliseconds
-for HDDs and hundreds of microseconds for SATA SSDs. A simple approach that
-stores timestamps on disk would therefore be severely limited by these delays,
-making high-performance concurrency control protocols impractical.
+First, consider using \sketchname in HDDs and SATA SSDs. In these systems, each
+random I/O operation is extremely slow, measured in milliseconds for HDDs and
+hundreds of microseconds for SATA SSDs. Traditional approaches for disk-based
+databases, such as 2PL and OCC, have been the standard choice for these
+environments because they avoid the metadata I/O overhead. On slow storage
+devices, their CPU overheads are largely hidden by the dominant cost of disk
+I/O, making these methods acceptable despite their limitations. A simple
+approach that stores timestamps on disk would therefore be severely limited by
+slow disk I/O delays, making high-performance concurrency control protocols
+impractical. \sketchname's ability to keep timestamps in memory becomes even
+more critical and outperforms traditional approaches in these environments by
+eliminating the need for slow disk I/O operations.
 
 \subsection{Fast Storage Environments}
 
