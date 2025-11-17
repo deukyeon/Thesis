@@ -1222,19 +1222,19 @@ A third observation is that \sketchname variants do not reach the performance of
 the idealized Memory counterpart as storage becomes faster. This is due to the
 overhead from the \sketchname data structure itself. On slow storage, these
 overheads are negligible compared to disk I/O latency, but on fast storage they
-become significant. The overhead has several components: (1) Hash table operations:
-\sketchname must create and delete entries in a hash table, which requires 
-allocating and copying memory for keys based on their reference count. In the 
-high-contention, read-intensive workload for TicToc-\psketchname, roughly 80\% of 
-\texttt{IncRef} calls are responsible for creating new entries in the hash table, 
-which increases overhead. (2) Sketch eviction: \fsketchname has additional overhead 
-because it needs to evict keys from the hash table to the sketch when reference 
-counts reach zero, a step that does not occur in the \psketchname variant. (3) 
-Memory allocation: Both variants require dynamic memory allocation for hash table 
-entries and key storage, which incurs CPU cycles and potential cache misses. These 
-overheads collectively create a performance gap between Memory and \sketchname 
-variants that grows larger on fast storage, where CPU cycles become the limiting 
-factor rather than storage latency.
+become significant. The overhead has several components: (1) Hash table
+operations: \sketchname must create and delete entries in a hash table, which
+requires allocating and copying memory for keys based on their reference count.
+In the high-contention, read-intensive workload for TicToc-\psketchname, roughly
+80\% of \texttt{IncRef} calls are responsible for creating new entries in the
+hash table, which increases overhead. This dynamic memory allocation for hash
+table entries and key storage incurs CPU cycles and potential cache misses. (2)
+Sketch eviction: \fsketchname has additional overhead because it needs to evict
+keys from the hash table to the sketch when reference counts reach zero, a step
+that does not occur in the \psketchname variant. These overheads collectively
+create a performance gap between Memory and \sketchname variants that grows
+larger on fast storage, where CPU cycles become the limiting factor rather than
+storage latency.
 
 In the high-contention, read-intensive workload, TicToc-\psketchname is
 3.55$\times$ and 21.5$\times$ faster than 2PL and KR-OCC, respectively.
