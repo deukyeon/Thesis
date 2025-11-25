@@ -44,11 +44,12 @@ traditional timestamp-based protocols would abort. This flexibility is key to
 avoiding aborts: for example, a transaction that commits physically after
 another transaction can receive a logical commit timestamp that places it before
 the other transaction in the serialization order, computed based on the
-timestamps of keys accessed by both transactions. In TicToc, each data item has
-a valid range of timestamps [write timestamp ($wts$), read timestamp ($rts$)],
-and a transaction's commit timestamp must lie within the valid ranges of all
-accessed data items. This ability to decouple physical commit order from logical
-timestamp order ultimately reduces conflicts and improves concurrency.
+timestamps of keys accessed by both transactions. In TicToc, a transaction's
+commit timestamp must be within the range of [write timestamp ($wts$), read
+timestamp ($rts$)] of the version that it read and must be greater than $rts$ of
+the previous version it wrote. This ability to decouple physical commit order
+from logical timestamp order ultimately reduces conflicts and improves
+concurrency.
 
 However, the timestamp-based methods face a significant challenge in disk-based
 databases: accessing timestamps on disk creates substantial I/O overhead. When
@@ -115,11 +116,12 @@ orderings. When keys become inactive and their timestamps are quickly
 overapproximated, TicToc loses access to the precise historical data it needs.
 Instead, it must base its validation decisions on overapproximated timestamps,
 which constrains its ability to find optimal commit orderings. For example,
-consider a transaction that accesses a key whose true timestamps, $wts=100$ and
+consider a transaction that reads a key whose true timestamps are $wts=100$ and
 $rts=160$, but has been overapproximated to $wts=150$. TicToc must assume the
 key was last modified at time 150. If the transaction could have committed with
-any timestamp in the range $[101, 160]$ when using precise timestamps, the
-overapproximation reduces this viable range to $[151, 160]$, eliminating 50
+any timestamp in the range $[100, 160]$ when using precise timestamps (since the
+commit timestamp must be within [$wts$, $rts$] of the version it read), the
+overapproximation reduces this viable range to $[150, 160]$, eliminating 50
 possible commit timestamps.
 
 This conservative behavior erodes TicToc's advantage: as overapproximation
