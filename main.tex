@@ -116,6 +116,8 @@
 
 \begin{document}
 
+\pagenumbering{gobble}
+
 \input{00-titlepages.tex}
 \doublespacing
 
@@ -129,6 +131,9 @@
 \listoffigures
 \listoftables
 \clearpage
+
+\pagenumbering{arabic}
+\setcounter{page}{1}
 
 \chapter {Introduction}
 \label{chapter:one}
